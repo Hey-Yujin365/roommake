@@ -4,6 +4,7 @@ import com.roommake.user.exception.EmailException;
 import com.roommake.user.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -32,9 +33,10 @@ public class EmailVerifyController {
 
     @Operation(summary = "인증코드 검증", description = "제공된 인증코드를 검증한다.")
     @PostMapping("/verify-email")
-    public ResponseEntity<?> verifyEmail(@RequestParam String code, @RequestParam String email) {
+    public ResponseEntity<?> verifyEmail(@RequestParam String code, @RequestParam String email, HttpSession session) {
         boolean isValidCode = userService.verifyEmail(email, code);
         if (isValidCode) {
+            session.setAttribute("verifiedEmail", email); // 세션에 이메일 저장
             // 인증 코드가 유효한 경우
             return ResponseEntity.ok().body("{\"valid\": true}");
         } else {
@@ -42,7 +44,7 @@ public class EmailVerifyController {
             return ResponseEntity.badRequest().body("{\"valid\": false}");
         }
     }
-    
+
     @Operation(summary = "이메일 서비스 예외 처리", description = "이메일 서비스에서 발생하는 모든 예외를 처리한다.")
     @ExceptionHandler(EmailException.class)
     public ResponseEntity<String> handleEmailServiceException(EmailException ex) {

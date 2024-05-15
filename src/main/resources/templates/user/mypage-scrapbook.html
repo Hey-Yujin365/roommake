@@ -10,24 +10,25 @@
                 <h4 class="mb-3" style="font-size: 18px;" th:text="${user.nickname}">그릭요거트</h4>
             </div>
             <!-- 스크랩 북 카테고리-->
-            <ul class="nav nav-tabs justify-content-center mt-3">
+            <ul class="nav nav-tabs justify-content-center mt-3" th:each="scrapCount : ${scrapCounts}">
                 <li class="nav-item">
-                    <a class="nav-link active" data-toggle="tab" href="/user/scrapbook" style="color: cornflowerblue !important;">모두 (<span th:text="${totalScrapCount}">0</span>)</a>
+                    <a class="nav-link active" data-toggle="tab" href="/user/scrapbook" style="color: cornflowerblue !important;">모두 (<span th:text="${scrapCount.totalCount}">0</span>)</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" data-toggle="tab" href="/user/scrapbook1" style="color: black;">폴더 (<span th:text="${#lists.size(recentScraps)}">0</span>)</a>
+                    <a class="nav-link" data-toggle="tab" href="/user/scrapbook1" style="color: black;">폴더 (<span th:text="${scrapCount.folderCount}">0</span>)</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" data-toggle="tab" href="/user/scrapbook2" style="color: black;">상품 (<span th:text="${productCount}">0</span>)</a>
+                    <a class="nav-link" data-toggle="tab" href="/user/scrapbook2" style="color: black;">상품 (<span th:text="${scrapCount.productCount}">0</span>)</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" data-toggle="tab" href="/user/scrapbook3" style="color: black;">커뮤니티 (<span th:text="${communityCount}">0</span>)</a>
+                    <a class="nav-link" data-toggle="tab" href="/user/scrapbook3" style="color: black;">커뮤니티 (<span th:text="${scrapCount.communityCount}">0</span>)</a>
                 </li>
             </ul>
             <div class="text-end mt-3">
                 <a class="edit-link" href="#" style="color: cornflowerblue; text-decoration: none;">편집</a>
             </div>
             <div class="row mt-3">
+
                 <!-- 갤러리 이미지  -->
                 <div class="col-md-3 mb-3" th:each="scrap : ${allScraps}">
                     <a th:href="${scrap.type == 'Product' ? '/store/detail/' + scrap.itemId : (scrap.type == 'Community' ? '/community/detail/' + scrap.itemId : '')}">
@@ -116,22 +117,31 @@
                     <input type="hidden" name="types" id="insert-move-item-types">
                 </form>
             </div>
-            <!-- 페이지 네이션-->
-            <nav aria-label="Page navigation example">
-                <ul class="pagination justify-content-center">
-                    <li class="page-item">
-                        <a class="page-link" href="#" aria-label="Previous">
-                            <span aria-hidden="true">&laquo;</span>
-                        </a>
-                    </li>
-                    <li class="page-item" th:each="num : ${#numbers.sequence(paging.beginPage, paging.endPage)}"><a class="page-link" th:href="@{/user/scrapbook(page=${num})}" th:text="${num}">1</a></li>
-                    <li class="page-item">
-                        <a class="page-link" href="#" aria-label="Next">
-                            <span aria-hidden="true">&raquo;</span>
-                        </a>
-                    </li>
-                </ul>
-            </nav>
+            <div class="row mt-3 mb-3">
+                <div class="col-12">
+                    <div th:if="${paging.totalRows ne 0 }">
+                        <nav aria-label="Page navigation">
+                            <ul class="pagination justify-content-center">
+                                <li class="page-item" th:classappend="${paging.first ? 'disabled' : ''}">
+                                    <a th:href="@{/user/scrapbook(page=${paging.currentPage - 1})}" class="page-link"
+                                       th:onclick="|changePage(${paging.currentPage - 1}, event)|">이전</a>
+                                </li>
+                                <th:block th:each="num : ${#numbers.sequence(paging.beginPage, paging.endPage)}">
+                                    <li class="page-item" th:classappend="${paging.currentPage == num ? 'active' : ''}">
+                                        <a  th:href="@{/user/scrapbook(page=${num})}" class="page-link"
+                                           th:onclick="|changePage(${num}, event)|" th:text="${num}">1</a>
+                                    </li>
+                                </th:block>
+
+                                <li class="page-item" th:classappend="${paging.last ? 'disabled' : ''}">
+                                    <a th:href="@{/user/scrapbook(page=${paging.currentPage + 1})}" class="page-link"
+                                       th:onclick="|changePage(${paging.currentPage + 1}, event)|">다음</a>
+                                </li>
+                            </ul>
+                        </nav>
+                    </div>
+                </div>
+            </div>
         </div>
         </div>
     </div>
@@ -141,7 +151,7 @@
         // 편집 버튼 클릭 시 편집 모드로 전환
         $('a.edit-link').on('click', function(e) {
             e.preventDefault();
-            $('input.scrap-checkbox').show(); // 체크박스 표시
+            $('input.scrap-checkbox').show();
             $(this).hide(); // 편집 버튼 숨김
 
             // 폴더 이동, 삭제, 취소 버튼 추가
@@ -162,9 +172,9 @@
 
         // 취소 버튼 클릭 시 편집 모드를 취소하고 다시 편집 버튼을 표시
         $(document).on('click', '.cancel-btn', function() {
-            $('.action-text').remove(); // 모든 편집 모드 버튼 제거
+            $('.action-text').remove();
             $('input.scrap-checkbox').hide().prop('checked', false);
-            $('a.edit-link').show(); // 편집 버튼 표시
+            $('a.edit-link').show();
         });
 
         // 폴더 이동 또는 삭제 처리

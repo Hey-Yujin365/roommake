@@ -1,11 +1,7 @@
 package com.roommake.user.mapper;
 
 import com.roommake.dto.Criteria;
-import com.roommake.user.dto.AllScrap;
-import com.roommake.user.dto.PointHistoryDto;
-import com.roommake.user.dto.LikeDto;
-import com.roommake.user.dto.UserCommScrap;
-import com.roommake.user.dto.UserProductScrap;
+import com.roommake.user.dto.*;
 import com.roommake.user.vo.*;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -15,9 +11,6 @@ import java.util.Map;
 
 @Mapper
 public interface UserMapper {
-
-    // 모든 유저 조회
-    List<User> getAllUsers();
 
     // 이메일로 사용자 및 권한 조회
     Map<String, Object> getUserByEmailWithRoles(String email);
@@ -30,6 +23,9 @@ public interface UserMapper {
 
     // 닉네임으로 유저 조회
     User getUserByNickname(String nickname);
+
+    // 추천인으로 유저 조회
+    User getUserByRecommendCode(String recommendCode);
 
     // 아이디로 유저 조회
     User getUserById(int userId);
@@ -76,21 +72,29 @@ public interface UserMapper {
     // 유저의 모든 스크랩 조회
     List<AllScrap> getAllScraps(int userId, int offset);
 
-    //유저의 모든 폴더명 조회
-    //List<String> getAllScrapFolderName(int userId);
-    //
-
     // 폴더별 유저의 모든 스크랩 조회
-    List<AllScrap> getAllScrapsByFolderId(int userId, int folderId);
+    List<AllScrap> getAllScrapsByFolderId(int userId, int folderId, int offset);
+
+    // 폴더별 스크랩 행 조회
+    FolderScrapCountDto getAllScrapsByFolderIdRows(int folderId, int userId);
 
     // 모든 폴더 조회
-    List<AllScrap> getScrapFolders(int id);
+    List<AllScrap> getScrapFolders(int id, int offset);
+
+    // 유저의 모든 상품 스크랩 개수
+    int getScrapFoldersRows(int id);
 
     // 유저의 모든 상품 스크랩 조회
-    List<UserProductScrap> getProductScraps(int id, int catId);
+    List<UserProductScrap> getProductScraps(int userId, int catId, int offset);
+
+    // 유저의 모든 상품 스크랩 개수
+    int getProductRows(int userId, int catId);
 
     // 유저의 모든 커뮤니티 스크랩 조회
-    List<UserCommScrap> getCommunityScraps(int id, int catId);
+    List<UserCommScrap> getCommunityScraps(int id, int catId, int offset);
+
+    // 커뮤니티 스크랩 행 조회
+    int getCommunityScrapRows(int id, int catId);
 
     // 상품 스크랩을 기본 폴더로 이동
     void modifyProductScrapToDefaultFolder(int userId, int folderId);
@@ -158,5 +162,38 @@ public interface UserMapper {
 
     // 모든 스크랩 행 조회
     int getAllScrapsRows(int userId);
+
+    // 유저의 리뷰 베스트 순 조회
+    List<ReviewDto> getReviewsByBest(int userId);
+
+    // 유저의 리뷰 최신순 조회
+    List<ReviewDto> getReviewsByRecent(int userId);
+
+    // 리뷰 삭제
+    void deleteReview(int reviewId, int userId);
+
+    // 리뷰 행 조회
+    int getReviewRows(int userId);
+
+    // 유저의 모든 스크랩 조회
+    List<ReviewDto> getReviewsByBest(int userId, int offset);
+
+    // 유저의 모든 스크랩 조회
+    List<ReviewDto> getReviewsByRecent(int userId, int offset);
+
+    // 팔로잉 수 증가
+    void addFollowingCount(int followerUserId);
+
+    // 팔로워 수 증가
+    void addFollowerCount(int followeeUserId);
+
+    // 팔로잉 수 감소
+    void deleteFollowingCount(int followerUserId);
+
+    // 팔로워 수 감소
+    void deleteFollowerCount(int followeeUserId);
+
+    // 유저의 스크랩 개수 조회
+    List<ScrapCountDto> getScrapCount(int userId);
 }
 

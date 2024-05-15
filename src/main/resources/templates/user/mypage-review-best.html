@@ -1,0 +1,113 @@
+<html lang="ko" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/mypage-base}" th:with="category='나의리뷰'"
+      th:attr="data-category='나의리뷰',data-sub-category='내가 작성한 리뷰'">
+
+<div class="container my-4" layout:fragment="content">
+    <div class="container my-3">
+        <form id="form-mypage-review-best" action="/user/myReview/best" method="get">
+            <input type="hidden" name="page"/>
+
+            <h4>내가 작성한 리뷰</h4>
+            <div class="row mt-5 mb-2">
+                <div class="d-flex mb-2" aria-label="조회 탭">
+                    <a th:href="@{/user/myReview/best}" class="btn btn-primary" style="padding-left: 2rem; padding-right: 2rem;">베스트순</a>
+                    <a th:href="@{/user/myReview/recent}" class="btn" style="background-color: #eee; padding-left: 2rem; padding-right: 2rem; margin-left: 5px">최신순</a>
+                </div>
+            </div>
+            <div class="row mt-3 small">
+                <div class="col">
+                    <table class="table">
+                        <colgroup>
+                            <col style="width: 15%;">
+                            <col style="width: 55%;">
+                            <col style="width: 30%;">
+
+                        </colgroup>
+                        <tbody>
+                        <tr th:each="review : ${reviews}">
+                            <td style="vertical-align: middle; text-align: center;">
+                                <img th:src="@{${review.imageName}}" style="width:100px; height: 100px; border: none;">
+                            </td>
+                            <td style="vertical-align: middle;">
+                                <p th:text="${review.name}" style="margin-bottom: 3px;">상품명</p>
+                                <div class="text-secondary" style="font-size: 12px;">
+                                    사이즈: <span th:text="${review.size}">M</span>
+                                    / 색상: <span th:text="${review.color}">화이트</span>
+                                </div>
+                                <div class="text-secondary" style="font-size: 16px; margin-bottom: 3px;">
+                                    <div class="rating">
+                                        <span th:each="starNum : ${#numbers.sequence(1, 5)}">
+                                            <span th:if="${starNum &lt;= review.rating}">
+                                                <i class="bi bi-star-fill" style="color: #FFD400;"></i>
+                                            </span>
+                                            <span th:if="${starNum - review.rating > 0 &amp;&amp; starNum - review.rating &lt; 1}">
+                                                <i class="bi bi-star-half" style="color: #FFD400;"></i>
+                                            </span>
+                                            <span th:if="${starNum > review.rating}">
+                                                <i class="bi bi-star" style="color: #FFD400;"></i>
+                                            </span>
+                                        </span>
+                                        <span th:text="${#dates.format(review.createDate, 'yyyy.MM.dd')}" style="font-size: 12px; margin-left: 2px;"></span>
+                                    </div>
+                                    <p th:text="${review.content}" style="margin-top: 3px;">리뷰 내용</p>
+                                </div>
+                            </td>
+                            <td style="vertical-align: middle;">
+                                <form class="delete-form" th:action="@{/user/myReview/delete/{reviewId}(reviewId=${review.id})}" method="post">
+                                    <button type="submit" class="btn btn-secondary btn-sm float-end">삭제</button>
+                                </form>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <!-- 주문 리스트 끝 -->
+            <div class="row mt-3 mb-3">
+                <div class="col-12">
+                    <div th:if="${paging.totalRows ne 0 }">
+                        <nav aria-label="Page navigation">
+                            <ul class="pagination justify-content-center">
+                                <li class="page-item" th:classappend="${paging.first ? 'disabled' : ''}">
+                                    <a th:href="@{/user/myReview/best?page=${paging.currentPage - 1}}" class="page-link"
+                                       th:onclick="|changePage(${paging.currentPage - 1}, event)|">이전</a>
+                                </li>
+                                <th:block th:each="num : ${#numbers.sequence(paging.beginPage, paging.endPage)}">
+                                    <li class="page-item" th:classappend="${paging.currentPage == num ? 'active' : ''}">
+                                        <a th:href="@{|/user/myReview/best?page=${num}|}" class="page-link"
+                                           th:onclick="|changePage(${num}, event)|" th:text="${num}"></a>
+                                    </li>
+                                </th:block>
+
+                                <li class="page-item" th:classappend="${paging.last ? 'disabled' : ''}">
+                                    <a th:href="@{/user/myReview/best?page=${paging.currentPage + 1}}" class="page-link"
+                                       th:onclick="|changePage(${paging.currentPage + 1}, event)|">다음</a>
+                                </li>
+                            </ul>
+                        </nav>
+                    </div>
+                </div>
+            </div>
+        </form>
+        </form>
+    </div>
+</div>
+<script layout:fragment="script" type="text/javascript">
+    $(document).ready(function() {
+        $('.btn-secondary').click(function(event) {
+            event.preventDefault();
+            var form = $(this).closest('.delete-form');
+            if (confirm("정말 삭제하시겠습니까?")) {
+                form.submit();
+            }
+        });
+    });
+
+    function changePage(page, event) {
+        event.preventDefault();
+        $("input[name=page]").val(page);
+        $('[id^="form-"]').submit();
+    }
+
+</script>
+</html>

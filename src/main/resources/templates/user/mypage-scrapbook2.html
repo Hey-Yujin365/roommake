@@ -6,22 +6,22 @@
         </div>
         <div class="container mt-5">
             <div class="text-center" style="margin-bottom: 70px;">
-                <img class="rounded-circle" th:src="${user.profilePhoto}"  style="width: 125px; height: 125px; margin-bottom: 15px;">
+                <img class="rounded-circle" th:src="${user.profilePhoto}" style="width: 125px; height: 125px; margin-bottom: 15px;">
                 <h4 class="mb-3" style="font-size: 18px;" th:text="${user.nickname}">그릭요거트</h4>
             </div>
             <!-- 스크랩 북 카테고리-->
-            <ul class="nav nav-tabs justify-content-center mt-3">
+            <ul class="nav nav-tabs justify-content-center mt-3" th:each="scrapCount : ${scrapCounts}">
                 <li class="nav-item">
-                    <a class="nav-link" data-toggle="tab" href="/user/scrapbook" style="color: black;">모두 (85)</a>
+                    <a class="nav-link" data-toggle="tab" href="/user/scrapbook" style="color: black;">모두 (<span th:text="${scrapCount.totalCount}">0</span>)</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" data-toggle="tab" href="/user/scrapbook1" style="color: black;">폴더 (2)</a>
+                    <a class="nav-link" data-toggle="tab" href="/user/scrapbook1" style="color: black;">폴더 (<span th:text="${scrapCount.folderCount}">0</span>)</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link active" data-toggle="tab" href="/user/scrapbook2" style="color: cornflowerblue !important;">상품 (58)</a>
+                    <a class="nav-link active" data-toggle="tab" href="/user/scrapbook2" style="color: cornflowerblue !important;">상품 (<span th:text="${scrapCount.productCount}">0</span>)</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" data-toggle="tab" href="/user/scrapbook3" style="color: black;">커뮤니티 (15)</a>
+                    <a class="nav-link" data-toggle="tab" href="/user/scrapbook3" style="color: black;">커뮤니티 (<span th:text="${scrapCount.communityCount}">0</span>)</a>
                 </li>
             </ul>
         </div>
@@ -35,7 +35,7 @@
                         <div class="col">
                             <div class="text-start mt-3">
                                 <form id="form-list" action="/user/scrapbook2">
-                                    <input type="hidden" name="page">
+                                    <input type="hidden" name="page"/>
                                     <!-- 카테고리 드롭다운 -->
                                     <div class="d-inline-block me-2" style="width: 130px;">
                                         <select id="category" name="catId" class="form-select" style="font-size: 0.75rem;">
@@ -45,16 +45,6 @@
                                             </th:block>
                                         </select>
                                     </div>
-                                    <select name="type">
-                                        <option value="all">전체</option>
-                                        <option value="furniture">가구</option>
-                                        <option value="fabric">패브릭</option>
-                                        <option value="kitchen">주방용품</option>
-                                        <option value="Home">가전</option>
-                                        <option value="Deco">데코</option>
-                                        <option value="Lamp">조명</option>
-                                    </select>
-                                    </input>
                                 </form>
                             </div>
                         </div>
@@ -73,7 +63,7 @@
                 <div class="position-relative product-card">
                     <a th:href="@{|/store/detail/${product.productId}|}">
                         <input class="scrap-checkbox position-absolute" style="display: none; top: 10px; left: 10px;" type="checkbox" th:data-item-id="${product.productId}" th:data-item-type="'Product'">
-                        <img alt="Gallery Image ${i}" class="gallery-img" th:src="|/images/product/${product.productImageName}|" style="width:100%; height:170px; border-radius: 2px;">
+                        <img alt="Gallery Image ${i}" class="gallery-img" th:src="@{${product.productImageName}}" style="width:100%; height:170px; border-radius: 2px;">
                     </a>
                     <div class="product-info" style="display: flex; flex-direction: column; gap: 10px;">
                         <!-- 상품명 (최대 두 줄로 표시) -->
@@ -94,21 +84,34 @@
                     </div>
                 </div>
             </div>
-            <nav aria-label="Page navigation example">
-                <ul class="pagination justify-content-center">
-                    <li class="page-item">
-                        <a class="page-link" href="#" aria-label="Previous">
-                            <span aria-hidden="true">&laquo;</span>
-                        </a>
-                    </li>
-                    <li class="page-item" th:each="num : ${#numbers.sequence(paging.beginPage, paging.endPage)}"><a class="page-link" th:href="@{/user/scrapbook2(page=${num})}" th:text="${num}">1</a></li>
-                    <li class="page-item">
-                        <a class="page-link" href="#" aria-label="Next">
-                            <span aria-hidden="true">&raquo;</span>
-                        </a>
-                    </li>
-                </ul>
-            </nav>
+        </div>
+        <div class="row mt-3 mb-3">
+            <div class="col-12">
+                <div th:if="${paging.totalRows ne 0 }">
+                    <nav aria-label="Page navigation">
+                        <ul class="pagination justify-content-center">
+                            <li class="page-item" th:classappend="${paging.first ? 'disabled' : ''}">
+                                <a th:href="@{user/scrapbook2(catId=${categoryId}, page=${paging.currentPage - 1})}" class="page-link"
+                                   th:attr="data-page=${paging.currentPage - 1}"
+                                >이전</a>
+                            </li>
+                            <th:block th:each="num : ${#numbers.sequence(paging.beginPage, paging.endPage)}">
+                                <li class="page-item" th:classappend="${paging.currentPage == num ? 'active' : ''}">
+                                    <a th:href="@{user/scrapbook2(catId=${categoryId}, page=${num})}" class="page-link"
+                                       th:attr="data-page=${num}"
+                                       th:text="${num}">1</a>
+                                </li>
+                            </th:block>
+                            <li class="page-item" th:classappend="${paging.last ? 'disabled' : ''}">
+                                <a th:href="@{user/scrapbook2(catId=${categoryId}, page=${paging.currentPage + 1})}"
+                                   th:attr="data-page=${paging.currentPage + 1}"
+                                   class="page-link">다음</a>
+                            </li>
+                            </li>
+                        </ul>
+                    </nav>
+                </div>
+            </div>
         </div>
 
         <!-- 폴더 이동 모달 -->
@@ -146,7 +149,6 @@
                                          th:if="${#strings.isEmpty(folder.type) || #strings.isEmpty(folder.imageName)}"
                                          th:src="@{https://roommake.s3.ap-northeast-2.amazonaws.com/d1843087-ad9d-4ad7-a15b-3ba61f291d09.png}"
                                          alt="Default Folder Image">
-
                                     <!-- 폴더 이름 표시 -->
                                     <span th:text="${folder.folderName}">폴더명</span>
                                 </li>
@@ -180,27 +182,26 @@
 <script layout:fragment="script" type="text/javascript">
     $(document).ready(function() {
 
+        // 카테고리 선택
         $('#category').on('change', function() {
-            location.href = "/user/scrapbook2?catId=" + $(this).val();
+            var newCatId = $(this).val();
+            var url = "/user/scrapbook2?catId=" + newCatId + "&page=1";
+            window.location.href = url;
         });
 
-        $("select[name=type]").change(function() {
-            $("input[name=page]").val(1);
-            $("#form-list").trigger("submit");
-        })
-
-
+// 페이지 네비게이션 링크 처리
         $(".pagination a").click(function(event) {
             event.preventDefault();
-
-            $("input[name=page]").val(  $(this).attr("data-page") );
-            $("#form-list").trigger("submit");
+            var page = $(this).attr("data-page");
+            var catId = $('#category').val();
+            var url = "/user/scrapbook2?catId=" + catId + "&page=" + page;
+            window.location.href = url;
         });
 
         // 편집 버튼 클릭 시 편집 모드로 전환
         $('a.edit-link').on('click', function(e) {
             e.preventDefault();
-            $('input.scrap-checkbox').show(); // 체크박스 표시
+            $('input.scrap-checkbox').show();
             $(this).hide(); // 편집 버튼 숨김
 
             // 폴더 이동, 삭제, 취소 버튼 추가

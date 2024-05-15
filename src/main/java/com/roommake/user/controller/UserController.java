@@ -91,12 +91,16 @@ public class UserController {
             return "/user/signupform";
         }
 
-        // 추천인 코드 입력 검증
-        if (form.getOptionRecommendCode() != null && !form.getOptionRecommendCode().isEmpty()) {
-            if (!userService.checkRecommendCodeExists(form.getOptionRecommendCode())) {
-                errors.rejectValue("optionRecommendCode", "error.optionRecommendCode", "존재하지 않는 추천인 코드입니다.");
-                return "/user/signupform";
-            }
+        if (!userService.isRecommendCodeValid(form.getOptionRecommendCode())) {
+            errors.rejectValue("optionRecommendCode", "optionRecommendCode", "유효하지 않은 코드입니다.");
+            return "/user/signupform";
+        }
+
+        String email = form.getEmail1() + "@" + form.getEmail2();
+
+        if (!userService.isEmailAvailable(email)) {
+            errors.rejectValue("email1", "email1", "이미 가입된 계정입니다.");
+            return "/user/signupform";
         }
 
         TermAgreement termAgreement = new TermAgreement();
@@ -145,6 +149,18 @@ public class UserController {
         }
     }
 
+    @Operation(summary = "추천인 코드 유효성 확인", description = "입력한 추천인 코드가 유효한지 확인하는 엔드포인트")
+    @ResponseBody
+    @PostMapping("/check-recommend-code")
+    public ResponseEntity<?> checkRecommendCode(@RequestParam String recommendCode) {
+        try {
+            boolean isDuplicate = userService.isRecommendCodeValid(recommendCode);
+            return ResponseEntity.ok(isDuplicate);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("추천인 코드 검사 중 오류가 발생했습니다.");
+        }
+    }
+
     @Operation(summary = "약관 조회", description = "약관을 조회한다.")
     @GetMapping("/terms/{id}")
     public String viewTerm(@PathVariable int id, Model model) {
@@ -167,24 +183,36 @@ public class UserController {
         }
     }
 
-    /**
-     * 비밀번호 변경 - 이메일 인증
-     *
-     * @return
-     */
-    @GetMapping("/resetpwd1")
-    public String resetpwd1() {
+    @Operation(summary = "비밀 번호 재설정 폼", description = "비밀번호 재설정 페이지를 조회한다.")
+    @GetMapping("/resetpwd")
+    public String resetpassword() {
         return "user/reset-password";
     }
 
-    /**
-     * 비밀번호 변경 폼
-     *
-     * @return
-     */
-    @GetMapping("/resetpwd2")
-    public String resetpwd2() {
-        return "user/reset-passwordform";
+    @Operation(summary = "비밀 번호 재설정", description = "비밀번호 재설정 처리한다.")
+    @PostMapping("/resetpwd")
+    public String resetpassword(@Valid @ModelAttribute ResetPasswordForm form, BindingResult errors, Principal principal) {
+        String email = form.getEmail();
+        User user = userService.getUserByEmail(email);
+        String userId = String.valueOf(user.getId());
+
+        // 서버 측 유효성 검사
+        if (errors.hasErrors()) {
+            return "user/resetpwd";
+        }
+
+        if (!form.getNewPassword().equals(form.getConfirmPassword())) {
+            errors.rejectValue("confirmPassword", "error.confirmPassword", "비밀번호와 비밀번호 확인이 일치하지 않습니다.");
+            return "user/resetpwd";
+        }
+        // 새 비밀번호 업데이트
+        boolean success = userService.updatePassword(userId, form.getNewPassword());
+        if (success) {
+            return "redirect:http://43.202.27.255/";
+        } else {
+            // 업데이트 실패 시 처리
+            return "redirect:/user/resetpwd";
+        }
     }
 
     @Operation(summary = "마이페이지 메인", description = "마이페이지 메인을 조회한다.")
@@ -225,11 +253,6 @@ public class UserController {
         return "user/mypage-main";
     }
 
-    /**
-     * 마이페이지 - 커뮤니티
-     *
-     * @return
-     */
     @Operation(summary = "마이페이지 커뮤니티", description = "마이페이지 커뮤니티 조회한다.")
     @GetMapping("/mycomm")
     @PreAuthorize("isAuthenticated()")
@@ -263,11 +286,7 @@ public class UserController {
         return "user/mypage-community";
     }
 
-    /**
-     * 마이페이지-스크랩북(모두)
-     *
-     * @return
-     */
+    @Operation(summary = "스크랩 북(모두) 조회", description = "마이페이지 스크랩북 '모두' 카테고리를 조회한다.")
     @GetMapping("/scrapbook")
     public String scrapbook(@RequestParam(name = "page", required = false, defaultValue = "1") int page,
                             Principal principal, Model model) {
@@ -276,70 +295,50 @@ public class UserController {
         model.addAttribute("user", user);
         int userId = user.getId();
 
-        int totalRows = communityService.getTotalRows(user.getId());
+        int totalRows = userService.getAllScrapsRows(userId);
         // 모든 스크랩 조회
         List<AllScrap> allScraps = userService.getAllScraps(userId, page);
-        // 화면에 표시할 페이징 정보
+        // 페이징
         Pagination pagination = new Pagination(page, totalRows, 30);
 
-        // 타입별로 필터링된 스크랩 목록을 모델에 추가
-        List<AllScrap> productScraps = allScraps.stream()
-                .filter(scrap -> "Product".equals(scrap.getType()))
-                .collect(Collectors.toList());
-        List<AllScrap> communityScraps = allScraps.stream()
-                .filter(scrap -> "Community".equals(scrap.getType()))
-                .collect(Collectors.toList());
-
-        model.addAttribute("productScraps", productScraps);
-        model.addAttribute("communityScraps", communityScraps);
         model.addAttribute("allScraps", allScraps);
         model.addAttribute("paging", pagination);
 
         // 모든 폴더 조회
-        List<AllScrap> recentScraps = userService.getScrapFolders(userId);
+        List<AllScrap> recentScraps = userService.getScrapFolders(userId, page);
         model.addAttribute("recentScraps", recentScraps);
 
-        // 각 카테고리별 개수 계산
-        int productCount = productScraps.size();
-        int communityCount = communityScraps.size();
-        int totalScrapCount = allScraps.size();
-
-        model.addAttribute("productCount", productCount);
-        model.addAttribute("communityCount", communityCount);
-        model.addAttribute("totalScrapCount", totalScrapCount);
+        // 모든 스크랩 개수 조회
+        List<ScrapCountDto> scrapCounts = userService.getScrapCount(userId);
+        model.addAttribute("scrapCounts", scrapCounts);
 
         return "user/mypage-scrapbook";
     }
 
-    @Operation(summary = "스크랩 폴더", description = "마이페이지 스크랩 폴더 카테고리를 조회한다.")
+    @Operation(summary = "스크랩 북(폴더) 조회", description = "마이페이지 스크랩 '폴더' 카테고리를 조회한다.")
     @GetMapping("/scrapbook1")
-    public String scrapbookWithAllScraps(Principal principal, Model model) {
-        // 사용자 이메일 확인 및 조회
+    public String scrapbookWithAllScraps(@RequestParam(name = "page", required = false, defaultValue = "1") int page,
+                                         Principal principal, Model model) {
         String email = principal != null ? principal.getName() : null;
         User user = userService.getUserByEmail(email);
         model.addAttribute("user", user);
+        int id = user.getId();
 
-        // 사용자 ID로 필요한 스크랩과 폴더 정보 가져오기
-        int userId = user.getId();
+        int totalRows = userService.getScrapFoldersRows(id);
 
         // 모든 스크랩 조회
-        List<AllScrap> allScraps = userService.getAllScraps(userId, 1);
+        List<AllScrap> allScraps = userService.getAllScraps(id, 1);
 
         // 폴더별 모든 스크랩 조회
-        List<AllScrap> recentScraps = userService.getScrapFolders(userId);
+        List<AllScrap> recentScraps = userService.getScrapFolders(id, page);
 
-        // 특정 타입으로 필터링된 스크랩 목록
-        List<AllScrap> productScraps = allScraps.stream()
-                .filter(scrap -> "Product".equals(scrap.getType()))
-                .collect(Collectors.toList());
-        List<AllScrap> communityScraps = allScraps.stream()
-                .filter(scrap -> "Community".equals(scrap.getType()))
-                .collect(Collectors.toList());
+        // 모든 스크랩 개수 조회
+        List<ScrapCountDto> scrapCounts = userService.getScrapCount(id);
+        model.addAttribute("scrapCounts", scrapCounts);
 
-        // 각 카테고리별 스크랩 개수 계산
-        int productCount = productScraps.size();
-        int communityCount = communityScraps.size();
-        int totalScrapCount = allScraps.size();
+        // 화면에 표시할 페이징 정보
+        Pagination pagination = new Pagination(page, totalRows, 30);
+        model.addAttribute("paging", pagination);
 
         // 기본 폴더 식별
         AllScrap defaultFolder = recentScraps.stream()
@@ -349,13 +348,8 @@ public class UserController {
         int defaultFolderId = defaultFolder != null ? defaultFolder.getFolderId() : -1;
 
         // 모델에 데이터 추가
-        model.addAttribute("productScraps", productScraps);
-        model.addAttribute("communityScraps", communityScraps);
         model.addAttribute("allScraps", allScraps);
         model.addAttribute("recentScraps", recentScraps);
-        model.addAttribute("productCount", productCount);
-        model.addAttribute("communityCount", communityCount);
-        model.addAttribute("totalScrapCount", totalScrapCount);
         model.addAttribute("defaultFolderId", defaultFolderId);
 
         // 스크랩북 페이지로 이동
@@ -364,19 +358,24 @@ public class UserController {
 
     @Operation(summary = "스크랩 폴더 상세", description = "마이페이지 스크랩 폴더 상세를 조회한다.")
     @GetMapping("/scrapbook1/{folderId}")
-    public String getAllScrapsByFolder(@PathVariable("folderId") int folderId, Principal principal, Model model) {
+    public String getAllScrapsByFolder(@RequestParam(name = "page", required = false, defaultValue = "1") int page,
+                                       @PathVariable("folderId") int folderId, Principal principal, Model model) {
         String email = principal != null ? principal.getName() : null;
         User user = userService.getUserByEmail(email);
         int userId = user.getId();
 
+        FolderScrapCountDto dto = userService.getAllScrapsByFolderIdRows(folderId, userId);
+        Pagination pagination = new Pagination(page, dto.getTotalCount(), 30);
+        model.addAttribute("paging", pagination);
+
         // 특정 폴더에 속한 모든 스크랩 조회
-        List<AllScrap> allScraps = userService.getAllScrapsByFolderId(userId, folderId);
+        List<AllScrap> allScraps = userService.getAllScrapsByFolderId(userId, folderId, page);
 
         // 전체 폴더 목록 조회
-        List<AllScrap> allFolders = userService.getScrapFolders(userId);
+        List<AllScrap> allFolders = userService.getScrapFolders(userId, page);
 
         // 기본 폴더 식별
-        List<AllScrap> recentScraps = userService.getScrapFolders(userId);
+        List<AllScrap> recentScraps = userService.getScrapFolders(userId, page);
         AllScrap defaultFolder = recentScraps.stream()
                 .filter(folder -> "기본 폴더".equals(folder.getFolderName()))
                 .findFirst()
@@ -397,87 +396,77 @@ public class UserController {
                 .filter(scrap -> "Community".equals(scrap.getType()))
                 .collect(Collectors.toList());
 
-        // 각 카테고리별 수
-        int productCount = productScraps.size();
-        int communityCount = communityScraps.size();
-        int totalScrapCount = actualScraps.size();
-
         // 모델에 추가
         model.addAttribute("isDefaultFolder", isDefaultFolder);
         model.addAttribute("allFolders", allFolders);
-        model.addAttribute("scraps", allScraps); // 전체 데이터 (폴더 정보 포함)
-        model.addAttribute("productScraps", productScraps); // 상품
-        model.addAttribute("communityScraps", communityScraps); // 커뮤니티
-        model.addAttribute("productCount", productCount);
-        model.addAttribute("communityCount", communityCount);
-        model.addAttribute("totalScrapCount", totalScrapCount); // 모든 스크랩의 실제 개수
-        model.addAttribute("folderId", folderId); // folderId 추가
+        model.addAttribute("scraps", allScraps);
+        model.addAttribute("productScraps", productScraps);
+        model.addAttribute("communityScraps", communityScraps);
+        model.addAttribute("productCount", dto.getProductCount());
+        model.addAttribute("communityCount", dto.getCommunityCount());
+        model.addAttribute("totalScrapCount", dto.getTotalCount());
+        model.addAttribute("folderId", folderId);
         model.addAttribute("user", user);
 
         return "user/mypage-scrapbook-folder";
     }
 
-    /**
-     * 마이페이지 - 스크랩북(상품)
-     *
-     * @return
-     */
+    @Operation(summary = "스크랩 북(상품) 조회", description = "마이페이지 스크랩 '상품' 카테고리를 조회한다.")
     @GetMapping("/scrapbook2")
-    public String scrapbook2(@RequestParam(name = "catId", required = false, defaultValue = "0") int categoryId, Principal principal, Model model) {
+    public String scrapbook2(@RequestParam(name = "catId", required = false, defaultValue = "1") int catId,
+                             @RequestParam(name = "page", required = false, defaultValue = "1") int page,
+                             Principal principal, Model model) {
         String email = principal != null ? principal.getName() : null;
         User user = userService.getUserByEmail(email);
         model.addAttribute("user", user);
+        int userId = user.getId();
 
-        int id = user.getId();
-
-        // 모든 스크랩 조회
-        List<AllScrap> allScraps = userService.getAllScraps(id, 1);
-
-        // 타입별로 필터링된 스크랩 목록을 모델에 추가
-        List<AllScrap> productScraps = allScraps.stream()
-                .filter(scrap -> "Product".equals(scrap.getType()))
-                .collect(Collectors.toList());
-        List<AllScrap> communityScraps = allScraps.stream()
-                .filter(scrap -> "Community".equals(scrap.getType()))
-                .collect(Collectors.toList());
-
-        model.addAttribute("productScraps", productScraps);
-        model.addAttribute("communityScraps", communityScraps);
-        model.addAttribute("allScraps", allScraps);
-
-        List<UserProductScrap> scrappedProducts = userService.getProductScraps(id, categoryId);
+        int totalRows = userService.getProductRows(userId, catId);
+        List<UserProductScrap> scrappedProducts = userService.getProductScraps(userId, catId, page);
         List<ProductCategory> categories = productService.getProductMainCategories();
-        List<AllScrap> allFolders = userService.getScrapFolders(id);
+        List<AllScrap> allFolders = userService.getScrapFolders(userId, 1);
 
-        model.addAttribute("categoryId", categoryId);
+        Pagination pagination = new Pagination(page, totalRows, 30);
+
+        // 모든 스크랩 개수 조회
+        List<ScrapCountDto> scrapCounts = userService.getScrapCount(userId);
+        model.addAttribute("scrapCounts", scrapCounts);
+
+        model.addAttribute("categoryId", catId);
         model.addAttribute("scrappedProducts", scrappedProducts);
         model.addAttribute("categories", categories);
         model.addAttribute("allFolders", allFolders);
+        model.addAttribute("paging", pagination);
 
         return "user/mypage-scrapbook2";
     }
 
-    /**
-     * 마이페이지 - 스크랩북(커뮤니티)
-     *
-     * @return
-     */
+    @Operation(summary = "스크랩 북(커뮤니티) 조회", description = "마이페이지 스크랩 '커뮤니티' 카테고리를 조회한다.")
     @GetMapping("/scrapbook3")
-    public String scrapbook3(@RequestParam(name = "catId", required = false, defaultValue = "0") int categoryId, Principal principal, Model model) {
+    public String scrapbook3(@RequestParam(name = "catId", required = false, defaultValue = "1") int catId,
+                             @RequestParam(name = "page", required = false, defaultValue = "1") int page,
+                             Principal principal, Model model) {
         String email = principal != null ? principal.getName() : null;
         User user = userService.getUserByEmail(email);
         model.addAttribute("user", user);
-
         int id = user.getId();
 
-        List<UserCommScrap> scrappedCommunities = userService.getCommunityScraps(id, categoryId);
+        int totalRows = userService.getCommunityScrapRows(id, catId);
+        List<UserCommScrap> scrappedCommunities = userService.getCommunityScraps(id, catId, page);
         List<CommunityCategory> categories = communityService.getAllCommCategories();
-        List<AllScrap> allFolders = userService.getScrapFolders(id);
+        List<AllScrap> allFolders = userService.getScrapFolders(id, 1);
 
-        model.addAttribute("categoryId", categoryId);
+        Pagination pagination = new Pagination(page, totalRows, 30);
+
+        // 모든 스크랩 개수 조회
+        List<ScrapCountDto> scrapCounts = userService.getScrapCount(id);
+        model.addAttribute("scrapCounts", scrapCounts);
+
+        model.addAttribute("categoryId", catId);
         model.addAttribute("scrappedCommunities", scrappedCommunities);
         model.addAttribute("categories", categories);
         model.addAttribute("allFolders", allFolders);
+        model.addAttribute("paging", pagination);
 
         return "user/mypage-scrapbook3";
     }
@@ -613,11 +602,7 @@ public class UserController {
         return "redirect:/user/scrapbook1/" + newFolderId;
     }
 
-    /**
-     * 마이페이지 - 좋아요
-     *
-     * @return
-     */
+    @Operation(summary = "마이페이지 좋아요 조회", description = "마이페이지 좋아요 페이지를 조회한다.")
     @GetMapping("/heart")
     public String heart(Model model, Principal principal) {
         String email = principal != null ? principal.getName() : null;
@@ -638,7 +623,7 @@ public class UserController {
         return "user/mypage-heart";
     }
 
-    // 마이페이지 답변완료 문의내역
+    @Operation(summary = "마이페이지 답변완료 문의내역", description = "마이페이지 답변완료 문의내역을 조회한다.")
     @GetMapping("/myqna/answer")
     @PreAuthorize("isAuthenticated()")
     public String myqnaAnswer(@RequestParam(name = "page", required = false, defaultValue = "1") int page,
@@ -658,7 +643,7 @@ public class UserController {
         return "user/mypage-qna-answer";
     }
 
-    // 마이페이지 미답변 문의내역
+    @Operation(summary = "마이페이지 미답변 문의내역", description = "마이페이지 미답변 문의내역을 조회한다.")
     @GetMapping("/myqna/noAnswer")
     @PreAuthorize("isAuthenticated()")
     public String myqnaNoanswer(@RequestParam(name = "page", required = false, defaultValue = "1") int page,
@@ -678,7 +663,7 @@ public class UserController {
         return "user/mypage-qna-noanswer";
     }
 
-    // 문의내역 삭제
+    @Operation(summary = "문의내역 삭제", description = "문의내역을 삭제한다.")
     @GetMapping("/myqna/delete/{type}/{qnaId}")
     @PreAuthorize("isAuthenticated()")
     public String qnaDelete(@PathVariable("qnaId") int qnaId,
@@ -696,7 +681,7 @@ public class UserController {
         return "redirect:/user/myqna/" + type;
     }
 
-    // 마이페이지 포인트내역
+    @Operation(summary = "마이페이지 포인트 내역", description = "마이페이지 포인트 내역을 조회한다.")
     @GetMapping("/point")
     @PreAuthorize("isAuthenticated()")
     public String point(@RequestParam(name = "page", required = false, defaultValue = "1") int page,
@@ -720,14 +705,14 @@ public class UserController {
         return "user/mypage-point";
     }
 
-    // 비밀번호 변경 폼 페이지로 이동
+    @Operation(summary = "비밀번호 변경 폼", description = "기존회원의 비밀번호 변경 페이지로 이동한다.")
     @GetMapping("/changePwd")
     public String showPasswordChangeForm(Model model) {
         model.addAttribute("passwordChangeForm", new PasswordChangeForm());
         return "user/mypage-resetpassword";
     }
 
-    // 비밀번호 변경 요청 처리
+    @Operation(summary = "비밀번호 변경 처리", description = "기존회원의 비밀번호 변경을 처리한다.")
     @PostMapping("/changePwd")
     public String handleChangePassword(@Valid @ModelAttribute PasswordChangeForm form, BindingResult errors, Principal principal) {
         // 현재 로그인한 사용자 이메일 가져오기
@@ -737,35 +722,31 @@ public class UserController {
 
         // 서버 측 유효성 검사
         if (errors.hasErrors()) {
-            return "/user/password-change";
+            return "/user/reset-password";
         }
 
         if (!form.getNewPassword().equals(form.getConfirmPassword())) {
             errors.rejectValue("confirmPassword", "error.confirmPassword", "비밀번호와 비밀번호 확인이 일치하지 않습니다.");
-            return "user/password-change";
+            return "user/reset-password";
         }
 
         // 현재 비밀번호 확인
         if (!userService.checkCurrentPassword(userId, form.getCurrentPassword())) {
             errors.rejectValue("currentPassword", "error.currentPassword", "현재 비밀번호가 일치하지 않습니다.");
-            return "user/password-change";
+            return "user/reset-password";
         }
 
         // 새 비밀번호 업데이트
         boolean success = userService.updatePassword(userId, form.getNewPassword());
         if (success) {
-            return "redirect:/user/mypage";
+            return "redirect:/localhost";
         } else {
             // 업데이트 실패 시 처리
-            return "redirect:/user/password-change";
+            return "redirect:/user/reset-password";
         }
     }
 
-    /**
-     * 마이페이지 - 설정 조회
-     *
-     * @return
-     */
+    @Operation(summary = "마이페이지 설정 폼", description = "마이페이지 - 설정 폼을 조회한다.")
     @PreAuthorize("isAuthenticated()")
     @GetMapping("/setting")
     public String settingForm(Model model, Principal principal) {
@@ -784,6 +765,7 @@ public class UserController {
         return "user/settingform";
     }
 
+    @Operation(summary = "마이페이지 설정 처리", description = "마이페이지 - 설정에서 기존회원 정보를 수정한다.")
     @PostMapping("/setting")
     public String updateSettings(@ModelAttribute UserSettingForm form,
                                  RedirectAttributes redirectAttributes,
@@ -850,5 +832,48 @@ public class UserController {
         userService.deleteFollow(loginUser.getId(), followeeUserId);
 
         return ResponseEntity.ok().build();
+    }
+
+    @Operation(summary = "리뷰 베스트 순", description = "상품 리뷰를 베스트 순으로 조회한다.")
+    @GetMapping("/myReview/best")
+    @PreAuthorize("isAuthenticated()")
+    public String myreview1(@RequestParam(name = "page", required = false, defaultValue = "1") int page,
+                            @Login LoginUser loginUser, Model model) {
+        int userId = loginUser.getId();
+
+        int totalRows = userService.getReviewRows(userId);
+        List<ReviewDto> reviews = userService.getReviewsByBest(userId, page);
+
+        Pagination pagination = new Pagination(page, totalRows, 10);
+
+        model.addAttribute("reviews", reviews);
+        model.addAttribute("paging", pagination);
+        return "/user/mypage-review-best";
+    }
+
+    @Operation(summary = "리뷰 최신순", description = "상품 리뷰를 최신순으로 조회한다.")
+    @GetMapping("/myReview/recent")
+    @PreAuthorize("isAuthenticated()")
+    public String myreview2(@RequestParam(name = "page", required = false, defaultValue = "1") int page,
+                            @Login LoginUser loginUser, Model model) {
+        int userId = loginUser.getId();
+
+        int totalRows = userService.getReviewRows(userId);
+        List<ReviewDto> reviews = userService.getReviewsByRecent(userId, page);
+
+        Pagination pagination = new Pagination(page, totalRows, 10);
+
+        model.addAttribute("reviews", reviews);
+        model.addAttribute("paging", pagination);
+        return "/user/mypage-review-recent";
+    }
+
+    @Operation(summary = "리뷰 삭제", description = "상품 리뷰를 삭제한다.")
+    @PostMapping("/myReview/delete/{reviewId}")
+    @PreAuthorize("isAuthenticated()")
+    public String deleteReview(@PathVariable int reviewId, @Login LoginUser loginUser, Model model) {
+        int userId = loginUser.getId();
+        userService.deleteReview(reviewId, userId);
+        return "redirect:/user/myReview/best";
     }
 }

@@ -36,23 +36,34 @@ import java.util.concurrent.ConcurrentHashMap;
 @RequiredArgsConstructor
 public class UserService {
 
-    private final PasswordEncoder passwordEncoder;  // 비밀번호 암호화
-    private final JavaMailSender mailSender;        // 이메일 발송
+    private final PasswordEncoder passwordEncoder;
+    private final JavaMailSender mailSender;
     private final UserMapper userMapper;
     private final UserRoleMapper userRoleMapper;
     private final S3Uploader s3Uploader;
 
     private Map<String, UserService.VerificationDetails> verifyCodes = new ConcurrentHashMap<>();
 
-    // 닉네임 중복 확인
+    /**
+     * 닉네임 중복확인
+     *
+     * @param nickname 닉네임
+     * @return 유저
+     */
     public boolean isNicknameUnique(String nickname) {
         User foundUser = userMapper.getUserByNickname(nickname);
         return foundUser == null;
     }
 
-    // 모든 유저 조회
-    public List<User> getAllUsers() {
-        return userMapper.getAllUsers();
+    /**
+     * 추천인 중복 확인
+     *
+     * @param recommendCode 상대방 추천코드
+     * @return 중복 여부
+     */
+    public boolean isRecommendCodeValid(String recommendCode) {
+        User foundUser = userMapper.getUserByRecommendCode(recommendCode);
+        return foundUser != null;
     }
 
     /**
@@ -61,6 +72,7 @@ public class UserService {
      * @param criteria 검색할 조건
      * @return ListDto<USer>로 조건에 맞게 반환된 유저 목록
      */
+    @Transactional(readOnly = true)
     public ListDto<User> getUsers(Criteria criteria) {
         int totalRows = userMapper.getTotalRows(criteria);
         Pagination pagination = new Pagination(criteria.getPage(), totalRows, criteria.getRows());
@@ -73,12 +85,23 @@ public class UserService {
         return dto;
     }
 
-    // 이메일로 유저 조회
+    /**
+     * 이메일로 유저 조회
+     *
+     * @param email 이메일
+     * @return 유저
+     */
+    @Transactional(readOnly = true)
     public User getUserByEmail(String email) {
         return userMapper.getUserByEmail(email);
     }
 
-    // 유저 등록
+    /**
+     * 유저 등록
+     *
+     * @param form
+     * @return 유저
+     */
     @Transactional
     public User createUser(UserSignupForm form) {
         String email = form.getEmail1() + "@" + form.getEmail2();
@@ -129,8 +152,8 @@ public class UserService {
             PlusPointHistory existMemberPlus = new PlusPointHistory();
             existMemberPlus.setUser(recommendUser);
             existMemberPlus.setAmount(500);
-            existMemberPlus.setExpireDate(expireDate);                                 // 만료일 설정
-            existMemberPlus.setPointType(PointType.getPointType(3));                    // 포인트 유형 설정
+            existMemberPlus.setExpireDate(expireDate);                                       // 만료일 설정
+            existMemberPlus.setPointType(PointType.getPointType(3));                      // 포인트 유형 설정
             userMapper.addPlusPointForExistUser(existMemberPlus);                            // 추천인 포인트 적립
             userMapper.modifyUserPoint(recommendUser.getId(), existMemberPlus.getAmount());  // 추천인 포인트 업데이트
         }
@@ -139,10 +162,10 @@ public class UserService {
         PlusPointHistory newMemberPlus = new PlusPointHistory();
         newMemberPlus.setUser(user);
         newMemberPlus.setAmount(1000);
-        newMemberPlus.setExpireDate(expireDate);                                           // 만료일 설정
-        newMemberPlus.setPointType(PointType.getPointType(2));                             // 포인트 유형 설정
-        userMapper.addPlusPointForNewUser(newMemberPlus);                                       // 신규 회원 포인트 적립
-        userMapper.modifyNewUserPoint(user.getId(), newMemberPlus.getAmount());        // 신규회원 포인트 업데이트
+        newMemberPlus.setExpireDate(expireDate);
+        newMemberPlus.setPointType(PointType.getPointType(2));
+        userMapper.addPlusPointForNewUser(newMemberPlus);                                    // 신규 회원 포인트 적립
+        userMapper.modifyNewUserPoint(user.getId(), newMemberPlus.getAmount());              // 신규회원 포인트 업데이트
 
         return user;
     }
@@ -158,7 +181,7 @@ public class UserService {
         MimeMessage message = mailSender.createMimeMessage();
         try {
             MimeMessageHelper helper = new MimeMessageHelper(message, true);
-            helper.setFrom("hyunji9886@knou.ac.kr");
+            helper.setFrom("roommake2307@gmail.com");
             helper.setTo(toEmail);
             helper.setSubject("[룸메이크] 인증코드 안내");
 
@@ -234,31 +257,53 @@ public class UserService {
         }
     }
 
-    // 모든 약관 조회
+    /**
+     * 모든 약관 조회
+     *
+     * @return 약관 리스트
+     */
+    @Transactional(readOnly = true)
     public List<Term> getAllTerms() {
         return userMapper.getAllTerms();
     }
 
-    // 유저 약관 동의 저장
+    /**
+     * 유저 약관별 동의 여부 저장
+     *
+     * @param termAgreement 동의 여부
+     */
     public void agreeToTerms(TermAgreement termAgreement) {
         userMapper.createTermAgreement(termAgreement);
     }
 
-    // 약관 ID로 약관 정보를 조회하는 메서드
+    /**
+     * 약관 아이디로 약관 정보 조회
+     *
+     * @param id 약관 아이디
+     * @return 약관
+     */
+    @Transactional(readOnly = true)
     public Term getTermById(int id) {
         return userMapper.getTermById(id);
     }
 
-    // 입력받은 추천인 코드가 유효한지 조회
-    public boolean checkRecommendCodeExists(String recommendCode) {
-        return userMapper.existRecommendCode(recommendCode);
-    }
-
-    // 이메일 중복 검사
+    /**
+     * 이메일 중복 검사
+     *
+     * @param email 이메일
+     * @return 중복 여부
+     */
     public boolean isEmailAvailable(String email) {
         return userMapper.ExistEmail(email);
     }
 
+    /**
+     * 회원정보 변경
+     *
+     * @param form
+     * @param username 이메일
+     * @throws Exception
+     */
     @Transactional(rollbackFor = Exception.class)
     public void modifyUserSettings(UserSettingForm form, String username) throws Exception {
         User existingUser = userMapper.getUserByEmail(username);
@@ -299,47 +344,127 @@ public class UserService {
             isChanged = true;
         }
 
-        // 변경이 감지된 경우에만 데이터베이스 업데이트
+        // 변경된 경우 업데이트
         if (isChanged) {
             userMapper.modifyUser(existingUser);
         }
     }
 
-    // 회원 정보 수정
+    /**
+     * 회원정보 수정
+     *
+     * @param user 유저
+     */
     public void modifyUser(User user) {
         userMapper.modifyUser(user);
     }
 
-    // 모든 스크랩 조회
+    /**
+     * 모든 스크랩 조회
+     *
+     * @param userId 유저 아이디
+     * @param page   페이징
+     * @return
+     */
+    @Transactional(readOnly = true)
     public List<AllScrap> getAllScraps(int userId, int page) {
         int offset = (page - 1) * 30;
         return userMapper.getAllScraps(userId, offset);
     }
 
+    /**
+     * 모든 스크랩 개수 조회
+     *
+     * @param userId 유저 아이디
+     * @return 스크랩 개수
+     */
+    @Transactional(readOnly = true)
     public int getAllScrapsRows(int userId) {
         return userMapper.getAllScrapsRows(userId);
     }
 
-    // 유저의 모든 스크랩 폴더명 조회
-    // public List<String> getAllScrapFolderName(int userId) {
-    //    return userMapper.getAllScrapFolderName(userId);
-    //}
-
-    // 스크랩 폴더 조회
-    public List<AllScrap> getScrapFolders(int id) {
-        return userMapper.getScrapFolders(id);
+    /**
+     * 스크랩 폴더 조회
+     *
+     * @param id   유저 아이디
+     * @param page 페이징
+     * @return
+     */
+    @Transactional(readOnly = true)
+    public List<AllScrap> getScrapFolders(int id, int page) {
+        int offset = (page - 1) * 30;
+        return userMapper.getScrapFolders(id, offset);
     }
 
-    // 유저의 모든 상품 스크랩 조회
-    public List<UserProductScrap> getProductScraps(int id, int catId) {
-        return userMapper.getProductScraps(id, catId);
+    /**
+     * 스크랩 폴더 개수 조회
+     *
+     * @param id 유저 아이디
+     * @return
+     */
+    @Transactional(readOnly = true)
+    public int getScrapFoldersRows(int id) {
+        return userMapper.getScrapFoldersRows(id);
     }
 
-    // 유저의 모든 커뮤니티 스크랩 조회
-    public List<UserCommScrap> getCommunityScraps(int id, int catId) {
-        return userMapper.getCommunityScraps(id, catId);
+    /**
+     * 유저의 모든 상품 스크랩 조회
+     *
+     * @param userId 유저 아이디
+     * @param catId  카테고리 아이디
+     * @param page   페이징
+     * @return 상품 스크랩 리스트
+     */
+    @Transactional(readOnly = true)
+    public List<UserProductScrap> getProductScraps(int userId, int catId, int page) {
+        int offset = (page - 1) * 30;
+        return userMapper.getProductScraps(userId, catId, offset);
     }
 
+    /**
+     * 유저의 상품 스크랩 개수 조회
+     *
+     * @param userId 유저 아이디
+     * @param catId  카테고리 아이디
+     * @return 상품 스크랩 개수
+     */
+    @Transactional(readOnly = true)
+    public int getProductRows(int userId, int catId) {
+        return userMapper.getProductRows(userId, catId);
+    }
+
+    /**
+     * 유저의 모든 커뮤니티 스크랩 조회
+     *
+     * @param id    유저 아이디
+     * @param catId 카테고리 아이디
+     * @param page  페이징
+     * @return 커뮤니티 스크랩 리스트
+     */
+    @Transactional(readOnly = true)
+    public List<UserCommScrap> getCommunityScraps(int id, int catId, int page) {
+        int offset = (page - 1) * 30;
+        return userMapper.getCommunityScraps(id, catId, offset);
+    }
+
+    /**
+     * 유저의 모든 커뮤니티 개수 조히
+     *
+     * @param userId 유저 아이디
+     * @param catId  카테고리 아이디
+     * @return 커뮤니티 스크랩 개수
+     */
+    @Transactional(readOnly = true)
+    public int getCommunityScrapRows(int userId, int catId) {
+        return userMapper.getCommunityScrapRows(userId, catId);
+    }
+
+    /**
+     * 폴더 삭제 및 아이템 기본 폴더로 이동
+     *
+     * @param userId   유저 ID
+     * @param folderId 선택한 폴더 ID
+     */
     @Transactional
     public void deleteAndMoveScrapFolder(int userId, int folderId) {
 
@@ -353,27 +478,75 @@ public class UserService {
         deleteScrapFolder(userId, folderId);
     }
 
-    // 스크랩 폴더 삭제
+    /**
+     * 스크랩 폴더 삭제
+     *
+     * @param userId   유저 아이디
+     * @param folderId 폴더 아이디
+     */
+    @Transactional(readOnly = true)
     public void deleteScrapFolder(int userId, int folderId) {
         userMapper.deleteScrapFolder(userId, folderId);
     }
 
-    // 폴더별 유저의 모든 스크랩 조회
-    public List<AllScrap> getAllScrapsByFolderId(int userId, int folderId) {
-        return userMapper.getAllScrapsByFolderId(userId, folderId);
+    /**
+     * 폴더별 유저의 스크랩 조회
+     *
+     * @param userId   유저 아이디
+     * @param folderId 폴더 아이디
+     * @param page     페이징
+     * @return
+     */
+    @Transactional(readOnly = true)
+    public List<AllScrap> getAllScrapsByFolderId(int userId, int folderId, int page) {
+        int offset = (page - 1) * 30;
+
+        return userMapper.getAllScrapsByFolderId(userId, folderId, offset);
     }
 
-    // 특정 아이템을 다른 폴더로 이동
+    /**
+     * 스크랩 폴더 개수 조회
+     *
+     * @param folderId 폴더 아이디
+     * @param userId   유저 아이디
+     * @return
+     */
+    @Transactional(readOnly = true)
+    public FolderScrapCountDto getAllScrapsByFolderIdRows(int folderId, int userId) {
+        return userMapper.getAllScrapsByFolderIdRows(folderId, userId);
+    }
+
+    /**
+     * 특정 아이템을 다른 폴더로 이동
+     *
+     * @param userId         유저 아이디
+     * @param itemId         아이템 아이디
+     * @param targetFolderId 이동할 폴더 아이디
+     * @param type           아이템 타입
+     */
     public void modifyScrapItemToFolder(int userId, int itemId, int targetFolderId, String type) {
         userMapper.modifyScrapItemToFolder(itemId, userId, targetFolderId, type);
     }
 
-    // 특정 아이템을 삭제
+    /**
+     * 특정 아이템 삭제
+     *
+     * @param userId 유저 아이디
+     * @param itemId 아이템 아이디
+     * @param type   아이템 타입
+     */
     public void deleteScrapItem(int userId, int itemId, String type) {
         userMapper.deleteScrapItem(itemId, userId, type);
     }
 
-    // 스크랩 폴더 이름 및 설명 수정
+    /**
+     * 스크랩 폴더 이름 및 설명 수정
+     *
+     * @param folderId          폴더 아이디
+     * @param userId            유저 아이디
+     * @param folderName        폴더 이름
+     * @param folderDescription 폴더 설명
+     */
     public void modifyScrapFolder(int folderId, int userId, String folderName, String folderDescription) {
         Map<String, Object> params = new HashMap<>();
         params.put("folderId", folderId);
@@ -383,7 +556,13 @@ public class UserService {
         userMapper.modifyScrapFolder(params);
     }
 
-    // 새로운 스크랩 폴더 추가
+    /**
+     * 새로운 스크랩 폴더 추가
+     *
+     * @param userId            유저 아이디
+     * @param folderName        폴더 이름
+     * @param folderDescription 폴더 설명
+     */
     public void addScrapFolder(int userId, String folderName, String folderDescription) {
         Map<String, Object> params = new HashMap<>();
         params.put("userId", userId);
@@ -392,12 +571,22 @@ public class UserService {
         userMapper.addScrapFolder(params);
     }
 
-    // 회원가입시 기본폴더 생성
+    /**
+     * 회원가입시 기본 폴더 생성
+     *
+     * @param userId 유저 아이디
+     */
     public void createDefaultFolder(int userId) {
         userMapper.createDefaultFolder(userId);
     }
 
-    // 새 폴더 생성 후 ID를 반환
+    /**
+     * 새 폴더 생성수 폴더 아이디 반환
+     *
+     * @param userId     유저 아이디
+     * @param folderName 폴더 이름
+     * @return 폴더 아이디
+     */
     public Integer addScrapFolderReturningId(int userId, String folderName) {
         Map<String, Object> params = new HashMap<>();
         params.put("userId", userId);
@@ -432,9 +621,12 @@ public class UserService {
      * @param followerId 팔로우 하는 유저
      * @param followeeId 팔로우 받는 유저
      */
+    @Transactional
     public void addFollow(int followerId, int followeeId) {
         Follow follow = new Follow(followerId, followeeId);
         userMapper.addFollow(follow);
+        userMapper.addFollowingCount(followerId);
+        userMapper.addFollowerCount(followeeId);
     }
 
     /**
@@ -443,9 +635,12 @@ public class UserService {
      * @param followerId 팔로우 하는 유저
      * @param followeeId 팔로우 받는 유저
      */
+    @Transactional
     public void deleteFollow(int followerId, int followeeId) {
         Follow follow = new Follow(followerId, followeeId);
         userMapper.deleteFollow(follow);
+        userMapper.deleteFollowingCount(followerId);
+        userMapper.deleteFollowerCount(followeeId);
     }
 
     /**
@@ -455,6 +650,7 @@ public class UserService {
      * @param userId 포인트 잔액을 조회할 유저
      * @return 포인트 잔액
      */
+    @Transactional(readOnly = true)
     public int getPointBalanceByUserId(int userId) {
         return userMapper.getPointBalanceByUserId(userId);
     }
@@ -470,34 +666,68 @@ public class UserService {
         return userMapper.getTotalPointHistory(userId);
     }
 
-    // 회원 탈퇴
+    /**
+     * 회원탈퇴
+     *
+     * @param email 이메일
+     */
     public void withdrawUser(String email) {
         userMapper.deleteUser(email, UserStatusEnum.DELETE.getStatus(), 0);
     }
 
-    // 유저의 총 스크랩 개수 조회
+    /**
+     * 유저의 총 스크랩 개수 조회
+     *
+     * @param userId 유저 아이디
+     * @return 총 스크랩 개수
+     */
+    @Transactional(readOnly = true)
     public int getTotalScrapCount(int userId) {
         return userMapper.getTotalScrapCount(userId);
     }
 
-    // 유저의 모든 좋아요 조회
+    /**
+     * 유저의 모든 좋아요 조회
+     *
+     * @param userId 유저 아이디
+     * @return 좋아요 리스트
+     */
+    @Transactional(readOnly = true)
     public List<LikeDto> getUserLikes(int userId) {
         return userMapper.getUserLikes(userId);
     }
 
-    // 유저의 모든 좋아요 개수 조회
+    /**
+     * 유저의 모든 좋아요 개수 조회
+     *
+     * @param userId 유저 아이디
+     * @return 좋아요 개수
+     */
+    @Transactional(readOnly = true)
     public int getTotalLikes(int userId) {
         return userMapper.getTotalLikes(userId);
     }
 
-    // 현재 비밀번호 확인 메서드
+    /**
+     * 현재 비밀번호 확인
+     *
+     * @param userId          유저 아이디
+     * @param currentPassword 현재 비밀번호
+     * @return 비밀번호 일치 여부
+     */
     public boolean checkCurrentPassword(String userId, String currentPassword) {
         // 데이터베이스에서 암호화된 비밀번호 가져오기
         String encodedPassword = userMapper.getPassword(userId);
         return passwordEncoder.matches(currentPassword, encodedPassword);
     }
 
-    // 새 비밀번호 업데이트 메서드
+    /**
+     * 새 비밀번호 업데이트
+     *
+     * @param userId      유저 아이디
+     * @param newPassword 새 비밀번호
+     * @return 업데이트 성공 여부
+     */
     public boolean updatePassword(String userId, String newPassword) {
         // 새 비밀번호 암호화
         String encodedPassword = passwordEncoder.encode(newPassword);
@@ -507,5 +737,63 @@ public class UserService {
 
         int updated = userMapper.updatePassword(params);
         return updated > 0; // 업데이트 성공 여부 반환
+    }
+
+    /**
+     * 리뷰 삭제
+     *
+     * @param reviewId 리뷰 아이디
+     * @param userId   유저 아이디
+     */
+    public void deleteReview(int reviewId, int userId) {
+        userMapper.deleteReview(reviewId, userId);
+    }
+
+    /**
+     * 리뷰 개수 조회
+     *
+     * @param userId 유저 아이디
+     * @return
+     */
+    @Transactional(readOnly = true)
+    public int getReviewRows(int userId) {
+        return userMapper.getReviewRows(userId);
+    }
+
+    /**
+     * 리뷰 베스트 순 조회
+     *
+     * @param userId 유저 아이디
+     * @param page   페이징
+     * @return
+     */
+    @Transactional(readOnly = true)
+    public List<ReviewDto> getReviewsByBest(int userId, int page) {
+        int offset = (page - 1) * 10;
+        return userMapper.getReviewsByBest(userId, offset);
+    }
+
+    /**
+     * 리뷰 최신순 조회
+     *
+     * @param userId 유저 아이디
+     * @param page   페이징
+     * @return
+     */
+    @Transactional(readOnly = true)
+    public List<ReviewDto> getReviewsByRecent(int userId, int page) {
+        int offset = (page - 1) * 10;
+        return userMapper.getReviewsByRecent(userId, offset);
+    }
+
+    /**
+     * 스크랩 개수 조회
+     *
+     * @param userId 유저 아이디
+     * @return 스크랩 개수
+     */
+    @Transactional(readOnly = true)
+    public List<ScrapCountDto> getScrapCount(int userId) {
+        return userMapper.getScrapCount(userId);
     }
 }

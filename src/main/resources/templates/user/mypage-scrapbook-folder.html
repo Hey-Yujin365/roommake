@@ -31,9 +31,8 @@
                     </a>
                 </li>
             </ul>
-            <!-- 편집 버튼 -->
             <div class="text-end mt-3">
-                <a th:if="${totalScrapCount > 0}" class="edit-link" href="#" style="color: cornflowerblue; text-decoration: none;">편집</a>
+                <a class="edit-link" href="#" style="color: cornflowerblue; text-decoration: none;">편집</a>
             </div>
             <div class="tab-content mt-3">
                 <!-- 모두 -->
@@ -73,7 +72,7 @@
                             <div class="col-md-3 mb-3">
                                 <div class="position-relative">
                                     <input class="scrap-checkbox position-absolute" style="display: none; top: 10px; left: 10px;" type="checkbox" th:data-item-id="${scrap.itemId}" th:data-item-type="${scrap.type}">
-                                    <img class="float-start" style="width:100%; height:150px; border-radius:2px;" th:src="|/images/product/${scrap.imageName}|">
+                                    <img class="float-start" style="width:100%; height:150px; border-radius:2px;" th:src="@{${scrap.imageName}}">
                                 </div>
                             </div>
                         </th:block>
@@ -87,11 +86,35 @@
                             <div class="col-md-3 mb-3">
                                 <div class="position-relative">
                                     <input class="scrap-checkbox position-absolute" style="display: none; top: 10px; left: 10px;" type="checkbox" th:data-item-id="${scrap.itemId}" th:data-item-type="${scrap.type}">
-                                    <img class="float-start" style="width:100%; height:150px; border-radius:2px;" th:if="${scrap.imageName == 'default.jpg'}" th:src="|/images/community/${scrap.imageName}|">
-                                    <img class="float-start" style="width:100%; height:150px; border-radius:2px;" th:if="${scrap.imageName != 'default.jpg'}" th:src="@{${scrap.imageName}}">
+                                    <img class="float-start" style="width:100%; height:150px; border-radius:2px;" th:src="@{${scrap.imageName}}">
                                 </div>
                             </div>
                         </th:block>
+                    </div>
+                </div>
+            </div>
+            <div class="row mt-3 mb-3">
+                <div class="col-12">
+                    <div th:if="${paging.totalRows ne 0 }">
+                        <nav aria-label="Page navigation">
+                            <ul class="pagination justify-content-center">
+                                <li class="page-item" th:classappend="${paging.first ? 'disabled' : ''}">
+                                    <a th:href="@{/user/scrapbook1(page=${paging.currentPage - 1})}" class="page-link"
+                                       th:onclick="|changePage(${paging.currentPage - 1}, event)|">이전</a>
+                                </li>
+                                <th:block th:each="num : ${#numbers.sequence(paging.beginPage, paging.endPage)}">
+                                    <li class="page-item" th:classappend="${paging.currentPage == num ? 'active' : ''}">
+                                        <a  th:href="@{/user/scrapbook1(page=${num})}" class="page-link"
+                                            th:onclick="|changePage(${num}, event)|" th:text="${num}">1</a>
+                                    </li>
+                                </th:block>
+
+                                <li class="page-item" th:classappend="${paging.last ? 'disabled' : ''}">
+                                    <a th:href="@{/user/scrapbook1(page=${paging.currentPage + 1})}" class="page-link"
+                                       th:onclick="|changePage(${paging.currentPage + 1}, event)|">다음</a>
+                                </li>
+                            </ul>
+                        </nav>
                     </div>
                 </div>
             </div>

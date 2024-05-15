@@ -5,7 +5,6 @@
         margin-bottom: 0.5em;
     }
 </style>
-<body>
 <div layout:fragment="content" class="container my-5">
     <div class="container my-3">
         <div class="row">
@@ -13,14 +12,14 @@
                 <!-- 유저 프로필 -->
                 <div class="card text-center p-4 position-relative" style="width: 300px;">
                     <div style="position: absolute; top: 5px; right: 5px; padding: 5px; background-color: white; border-radius: 50%;">
-                        <i class="bi bi-share fs-4"></i>
+                        <i class="bi bi-share fs-4" id="shareIcon"></i>
                     </div>
                     <div style="width: 80px; height: 80px; margin: 0 auto; overflow: hidden; border-radius: 50%;">
                         <img style="width: 100%; height: 100%; object-fit: cover;" th:src="${user.profilePhoto}">
                     </div>
                     <div class="card-body">
                         <h5 class="card-title" style="font-weight: bold" th:text="${user.nickname}">그릭요거트</h5>
-                        <p class="card-text">팔로잉 15 | 팔로워 3</p>
+                        <p class="card-text" th:text="'팔로잉 ' + ${user.followingCount} + ' | 팔로워 ' + ${user.followerCount}">팔로잉 15 | 팔로워 3</p>
                         <a href="/user/setting" class="btn btn-primary btn-sm">설정</a>
                         <hr>
                         <!-- 하위 아이콘 추가 (스크랩북, 좋아요) -->
@@ -60,76 +59,148 @@
                             <p style="font-weight: bold; font-size: 14px;" th:text="${community.title}">자주 찾는 인터넷 커뮤니티 공유해요!!</p>
                             <p id="communityContent" class="community-content" style="color: gray; font-size: 12px;" th:text="${community.content}"></p>
                             <div class="post-info" style="font-size: 0.8em; color: gray;">
-                                <span style="margin-right: 10px;" th:text="${community.user.nickname}">닉네임</span>
+                                <span class="fw-bold" style="font-size: 13px; margin-bottom: 0.25rem; margin-right:5px;" th:text="${community.user.nickname}">닉네임</span>
                                 <span style="margin-right: 10px;" th:text="${#dates.format(community.createDate, 'yyyy-MM-dd')}">2018.05.10</span>
-                                <span style="margin-right: 10px;" th:text="${community.replyCount}">댓글 3</span>
-                                <span style="margin-right: 10px;" th:text="${community.viewCount}">조회 1,582</span>
+                                <small>👀</small>
+                                <small th:text="${community.viewCount}">7</small>
+                                <small>💬</small>
+                                <small th:text="${community.replyCount}">7</small>
                             </div>
                         </div>
                         <div class="col-md-4">
                             <img alt="커뮤니티 이미지"
                                  th:src="@{${community.imageName}}"
                                  style="width: 140px; height: 140px; object-fit: cover; border: 1px solid #ccc;">
-                            <img alt="커뮤니티 이미지"
-                                 th:src="@{${community.imageName}}"
-                                 style="width: 140px; height: 140px; object-fit: cover; border: 1px solid #ccc;">
                         </div>
                         <hr style="margin-top: 20px;">
                     </div>
-                    <!-- 페이지 네이션-->
-                    <nav aria-label="Page navigation example">
-                        <ul class="pagination justify-content-center">
-                            <li class="page-item">
-                                <a class="page-link" href="#" aria-label="Previous">
-                                    <span aria-hidden="true">&laquo;</span>
-                                </a>
-                            </li>
-                            <li class="page-item" th:each="num : ${#numbers.sequence(paging.beginPage, paging.endPage)}"><a class="page-link" th:href="@{/user/mycomm(page=${num})}" th:text="${num}">1</a></li>
-                            <li class="page-item">
-                                <a class="page-link" href="#" aria-label="Next">
-                                    <span aria-hidden="true">&raquo;</span>
-                                </a>
-                            </li>
-                        </ul>
-                    </nav>
+                    <div class="row mt-3 mb-3">
+                        <div class="col-12">
+                            <div th:if="${paging.totalRows ne 0 }">
+                                <nav aria-label="Page navigation">
+                                    <ul class="pagination justify-content-center">
+                                        <li class="page-item" th:classappend="${paging.first ? 'disabled' : ''}">
+                                            <a th:href="@{/user/mycomm/page=${paging.currentPage - 1}}" class="page-link"
+                                               th:onclick="|changePage(${paging.currentPage - 1}, event)|">이전</a>
+                                        </li>
+                                        <th:block th:each="num : ${#numbers.sequence(paging.beginPage, paging.endPage)}">
+                                            <li class="page-item" th:classappend="${paging.currentPage == num ? 'active' : ''}">
+                                                <a th:href="@{/user/mycomm(page=${num})}" class="page-link"
+                                                   th:onclick="|changePage(${num}, event)|" th:text="${num}">1</a>
+                                            </li>
+                                        </th:block>
+
+                                        <li class="page-item" th:classappend="${paging.last ? 'disabled' : ''}">
+                                            <a th:href="@{/user/mycomm/page=${paging.currentPage + 1}}" class="page-link"
+                                               th:onclick="|changePage(${paging.currentPage + 1}, event)|">다음</a>
+                                        </li>
+                                    </ul>
+                                </nav>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
-            <!-- 컨텐츠 종료 -->
+            <!-- 링크 공유 모달창 -->
+            <div id="shareModal" style="display: none; position: absolute; right: 5px; top: 40px; padding: 5px; background-color: white; border: 1px solid #ddd; border-radius: 4px; z-index: 1000; width: 100px;">
+                <div style="display: flex; justify-content: center; align-items: center;">
+                    <!-- 카카오톡 공유 -->
+                    <div id="kakaoShare" style="margin-right: 8px; cursor: pointer;">
+                        <img th:src="@{/images/login/btn-kakao.png}" alt="카카오톡 공유" style="width: 35px; height: 35px; border-radius: 50%;"/>
+                    </div>
+                    <!-- 링크 복사 -->
+                    <div style="cursor: pointer; width: 35px; height: 35px; border-radius: 50%; background-color: gray; display: flex; justify-content: center; align-items: center;">
+                        <i class="bi bi-link-45deg" id="copyLink" style="color: white;"></i>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
+</html>
+<script src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.1/kakao.min.js" integrity="sha384-kDljxUXHaJ9xAb2AzRd59KxjrFjzHa5TAoFQ6GbYTCAG0bjM55XohjjDT7tDDC01" crossorigin="anonymous"></script>
 <script layout:fragment="script" type="text/javascript">
+
+    var communityContentElements = $('.community-content');
+
+    communityContentElements.each(function() {
+        var htmlContent = $(this).html();
+
+        var textarea = document.createElement('textarea');
+        textarea.innerHTML = htmlContent;
+        var decodedContent = textarea.value;
+
+        var formattedContent = decodedContent
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>')
+            .replace(/&amp;/g, '&')
+            .replace(/&nbsp;/g, ' ')
+            .replace(/<br\s*\/?>/gi, "\n")
+            .replace(/<\/p>/gi, "\n")
+            .replace(/<\/?[^>]+>/gi, '');
+
+        if (formattedContent.length > 300) {
+            formattedContent = formattedContent.substring(0, 300) + '...';
+        }
+
+        $(this).text(formattedContent);
+    });
+
+    // 카카오 SDK 초기화
+    Kakao.init('b5bebc212a2e13639e3975a054a7aa78');
+
     $(document).ready(function() {
-        // 모든 커뮤니티 콘텐츠를 포함하는 요소를 찾음
-        var communityContentElements = $('.community-content');
+        // 공유 아이콘 클릭 이벤트
+        $('#shareIcon').click(function(event) {
+            event.stopPropagation(); // 이벤트 전파 중지
+            var shareModal = $('#shareModal');
+            var iconPosition = $(this).offset(); // 공유 아이콘의 위치를 가져옴
+            var iconHeight = $(this).outerHeight(true); // 공유 아이콘의 외부 높이를 가져옴
 
-        // 각 요소에서 모든 HTML 태그를 제외하고 줄바꿈을 유지한 순수 텍스트만 남김
-        communityContentElements.each(function() {
-            // 원래의 HTML 내용 가져오기
-            var htmlContent = $(this).html();
-
-            // 이스케이프된 문자를 디코딩하기 위해 `<textarea>`를 이용
-            var textarea = document.createElement('textarea');
-            textarea.innerHTML = htmlContent;
-            var decodedContent = textarea.value;
-
-            // 특수 문자를 다시 기호로 변환 (이스케이프 해제)
-            var formattedContent = decodedContent
-                .replace(/&lt;/g, '<')
-                .replace(/&gt;/g, '>')
-                .replace(/&amp;/g, '&')
-                .replace(/&nbsp;/g, ' ');
-
-            // 줄바꿈을 위한 `<br>` 및 `<p>` 태그를 개행 문자로 변환
-            formattedContent = formattedContent
-                .replace(/<br\s*\/?>/gi, "\n")    // `<br>` 태그를 개행 문자로 변환
-                .replace(/<\/p>/gi, "\n")        // `</p>` 태그를 개행 문자로 변환
-                .replace(/<\/?[^>]+>/gi, '');    // 나머지 모든 태그 제거
-
-            // 순수 텍스트만 표시
-            $(this).text(formattedContent);
+            // 모달창 위치 설정
+            if (shareModal.is(':visible')) {
+                shareModal.fadeOut(300); // 모달창이 이미 표시되어 있으면 숨김
+            } else {
+                shareModal.css({
+                    'position': 'absolute',
+                    'top': iconPosition.top + iconHeight + 5 + 'px', // 아이콘 높이 만큼 아래에 위치
+                    'left': iconPosition.left + 'px', // 아이콘의 왼쪽 정렬을 기준으로 위치
+                    'display': 'block'
+                }).fadeIn(300); // 토글 효과 추가
+            }
         });
 
+        // 문서 클릭 이벤트
+        $(document).click(function() {
+            $('#shareModal').fadeOut(300); // 모달창 숨김
+        });
+
+        // 모달 내부 클릭시 이벤트 전파 방지
+        $('#shareModal').click(function(event) {
+            event.stopPropagation(); // 모달 내부 클릭 시 이벤트 전파 중지
+        });
+
+        // 카카오톡 공유 버튼 클릭 이벤트
+        $('#kakaoShare').click(function() {
+            var profileName = $('#profileName').text();
+
+            Kakao.Share.sendCustom({
+                templateId: 107346,
+                templateArgs: {
+                    'PROFILE_NAME': profileName
+                }
+            });
+        });
+
+        // 링크 복사 버튼 클릭 이벤트
+        $('#copyLink').click(function() {
+            var url = window.location.href;
+            navigator.clipboard.writeText(url).then(function() {
+                alert('링크가 클립보드에 복사되었습니다.');
+            }, function(err) {
+                alert('복사 실패: ' + err);
+            });
+        });
 
     });
 </script>

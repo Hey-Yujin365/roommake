@@ -68,6 +68,13 @@
         WHERE user_nickname = #{nickname}
     </select>
 
+    <!-- 추천인으로 유저 조회 -->
+    <select id="getUserByRecommendCode" resultMap="UserResultMap">
+        SELECT *
+        FROM user
+        WHERE user_unique_recommend_code = #{recommendCode}
+    </select>
+
     <!-- 추천인 코드 중복 체크 -->
     <select id="existRecommendCode" parameterType="String" resultType="boolean">
         SELECT EXISTS(SELECT 1
@@ -276,7 +283,7 @@
         AND ps.product_scrap_delete_yn = 'N'
           AND p.product_delete_yn = 'N'
 
-        UNION ALL
+        UNION
 
         SELECT
             'Community' AS type,
@@ -358,7 +365,7 @@
               AND cs.comm_scrap_delete_yn = 'N'
         )
 
-        UNION ALL
+        UNION
 
 -- 상품 스크랩 정보
         SELECT
@@ -382,7 +389,7 @@
           AND p.product_delete_yn = 'N'
           AND ps.user_id = #{userId}
 
-        UNION ALL
+        UNION
 
 -- 커뮤니티 스크랩 정보
         SELECT
@@ -407,6 +414,8 @@
 
         ORDER BY
             create_date DESC
+
+            limit #{offset}, 30
     </select>
 
     <resultMap id="AllScrap" type="com.roommake.user.dto.AllScrap">
@@ -420,15 +429,22 @@
         <result property="folderId" column="folderId" />
     </resultMap>
 
-    <!--
-    <select id="getAllScrapFolderName" resultType="String" parameterType="int">
-        SELECT scrap_folder_name
-        FROM scrap_folder
-        WHERE user_id = #{userId}
-        AND scrap_folder_delete_yn = 'N'
+    <!-- 폴더별 스크랩 행 조회 -->
+    <select id="getAllScrapsByFolderIdRows" parameterType="int" resultType="com.roommake.user.dto.FolderScrapCountDto">
+        select count(p_cnt) productCount,
+               count(c_cnt) communityCount,
+                count(*) totalCount
+        from (
+                 select  product_id p_cnt, null c_cnt
+                 from product_scrap p
+                 where p.scrap_folder_id = #{folderId}
+                   and p.user_id = #{userId}
+                 union
+                 select null, comm_id
+                 from community_scrap c
+                 where c.scrap_folder_id = #{folderId}
+                   and c.user_id = #{userId}) scrap;
     </select>
-    -->
-
 
     <!-- 폴더명 및 폴더 별 대표 이미지 조회 -->
     <select id="getScrapFolders" parameterType="int" resultMap="AllScrap">
@@ -500,41 +516,100 @@
                 WHEN folderName = '기본 폴더' THEN 0
                 ELSE 1
                 END,
-            folderCreateDate DESC;
+            folderCreateDate DESC
+            limit #{offset}, 30
+    </select>
+
+    <select id="getScrapFoldersRows" parameterType="int" resultType="int">
+        WITH ScrapData AS (
+            SELECT
+                'Product' AS type,
+                sf.scrap_folder_id AS folderId,
+                sf.scrap_folder_name AS folderName,
+                sf.scrap_folder_create_date AS folderCreateDate,
+                ps.product_id AS itemId,
+                pi.product_image_name AS imageName,
+                ps.product_scrap_create_date AS create_date
+            FROM
+                scrap_folder sf
+                    LEFT JOIN
+                product_scrap ps ON sf.scrap_folder_id = ps.scrap_folder_id AND ps.product_scrap_delete_yn = 'N'
+                    LEFT JOIN
+                product_image pi ON ps.product_id = pi.product_id
+            WHERE
+                sf.user_id = #{id} AND sf.scrap_folder_delete_yn = 'N'
+            UNION ALL
+            SELECT
+                'Community' AS type,
+                sf.scrap_folder_id AS folderId,
+                sf.scrap_folder_name AS folderName,
+                sf.scrap_folder_create_date AS folderCreateDate,
+                cs.comm_id AS itemId,
+                c.comm_image_name AS imageName,
+                cs.comm_scrap_create_date AS create_date
+            FROM
+                scrap_folder sf
+                    LEFT JOIN
+                community_scrap cs ON sf.scrap_folder_id = cs.scrap_folder_id AND cs.comm_scrap_delete_yn = 'N'
+                    LEFT JOIN
+                community c ON cs.comm_id = c.comm_id
+            WHERE
+                sf.user_id = #{id} AND sf.scrap_folder_delete_yn = 'N'
+        ),
+             FinalSelection AS (
+                 SELECT
+                     type,
+                     folderId,
+                     folderName,
+                     folderCreateDate,
+                     itemId,
+                     imageName,
+                     create_date,
+                     ROW_NUMBER() OVER (PARTITION BY folderId ORDER BY create_date DESC) AS final_rn
+                 FROM
+                     ScrapData
+             )
+        SELECT
+            COUNT(*) AS total_count
+        FROM
+            FinalSelection
+        WHERE
+            final_rn = 1;
     </select>
 
     <!--유저의 모든 상품 스크랩 조회-->
     <select id="getProductScraps" parameterType="int" resultMap="UserProductScrap">
         SELECT
-            p.product_id AS productId,
-            pi.product_image_name AS productImageName,
-            p.product_name AS productName,
-            p.product_price AS productPrice,
-            p.product_discount AS productDiscount,
-            pc.product_category_name AS categoryName
+        p.product_id AS productId,
+        pi.product_image_name AS productImageName,
+        p.product_name AS productName,
+        p.product_price AS productPrice,
+        p.product_discount AS productDiscount,
+        pc.product_category_name AS categoryName
         FROM
-            product_scrap ps
-                JOIN
-            product p ON ps.product_id = p.product_id
-                LEFT JOIN
-            product_image pi ON p.product_id = pi.product_id
-                LEFT JOIN
-            product_category pc ON p.category_id = pc.product_category_id
+        product_scrap ps
+        JOIN
+        product p ON ps.product_id = p.product_id
+        LEFT JOIN
+        product_image pi ON p.product_id = pi.product_id
+        LEFT JOIN
+        product_category pc ON p.category_id = pc.product_category_id
         WHERE
-            ps.user_id = #{id}
-          <if test="catId != 0">
+        ps.user_id = #{userId}
+        <if test="catId != 0">
             and p.category_id in (select category_id
-                                  from product_category x
-                                  where x.parents_product_category_id = #{catId})
-          </if>
-          AND
-            ps.product_scrap_delete_yn = 'N'
-          AND
-            p.product_delete_yn = 'N'
-          AND
-            p.product_status_yn = 'Y'
+            from product_category x
+            where x.parents_product_category_id = #{catId})
+        </if>
+        AND
+        ps.product_scrap_delete_yn = 'N'
+        AND
+        p.product_delete_yn = 'N'
+        AND
+        p.product_status_yn = 'Y'
         ORDER BY
-            ps.product_scrap_create_date DESC;
+        ps.product_scrap_create_date DESC
+        LIMIT #{offset}, 30
     </select>
 
     <resultMap id="UserProductScrap" type="com.roommake.user.dto.UserProductScrap">
@@ -545,6 +620,31 @@
         <result property="productDiscount" column="productDiscount" />
         <result property="categoryName" column="categoryName" />
     </resultMap>
+    
+    <!-- 유저의 모든 상품 커뮤니티 총 개수 조회 -->
+    <select id="getProductRows" resultType="int" parameterType="int">
+        SELECT
+        COUNT(*) AS totalCount
+        FROM
+        product_scrap ps
+        JOIN
+        product p ON ps.product_id = p.product_id
+        LEFT JOIN
+        product_image pi ON p.product_id = pi.product_id
+        LEFT JOIN
+        product_category pc ON p.category_id = pc.product_category_id
+        WHERE
+        ps.user_id = #{userId}
+        <if test="catId != 0">
+            AND p.category_id IN (SELECT category_id
+            FROM product_category x
+            WHERE x.parents_product_category_id = #{catId})
+        </if>
+        AND ps.product_scrap_delete_yn = 'N'
+        AND p.product_delete_yn = 'N'
+        AND p.product_status_yn = 'Y';
+
+    </select>
 
     <!-- 유저의 모든 커뮤니티 스크랩 조회 -->
     <select id="getCommunityScraps" parameterType="int" resultType="com.roommake.user.dto.UserCommScrap">
@@ -579,8 +679,7 @@
             c.comm_delete_yn = 'N'
           AND
             c.comm_status = 'active'
-        ORDER BY
-            cs.comm_scrap_create_date DESC;
+        LIMIT #{offset}, 30
     </select>
 
     <resultMap id="UserCommScrap" type="com.roommake.user.dto.UserCommScrap">
@@ -594,6 +693,23 @@
         <result property="likeCount" column="likeCount" />
         <result property="categoryName" column="categoryName" />
     </resultMap>
+
+    <!-- 커뮤니티 스크랩 행 조회 -->
+    <select id="getCommunityScrapRows" resultType="int" parameterType="int">
+        SELECT COUNT(*)
+        FROM community_scrap cs
+        JOIN community c ON cs.comm_id = c.comm_id
+        JOIN community_category cc ON c.comm_category_id = cc.comm_category_id
+        JOIN user u ON c.user_id = u.user_id
+        JOIN scrap_folder sf ON cs.scrap_folder_id = sf.scrap_folder_id
+        WHERE cs.user_id = #{id}
+        <if test="catId != 0">
+            AND c.comm_category_id = #{catId}
+        </if>
+        AND cs.comm_scrap_delete_yn = 'N'
+        AND c.comm_delete_yn = 'N'
+        AND c.comm_status = 'active';
+    </select>
 
     <!-- 상품 스크랩을 기본 폴더로 이동 -->
     <update id="modifyProductScrapToDefaultFolder" parameterType="int">
@@ -842,6 +958,25 @@
                 AS totalScrapCount;
     </select>
 
+    <!-- 유저의 스크랩 개수 조회 -->
+    <select id="getScrapCount" parameterType="int" resultType="com.roommake.user.dto.ScrapCountDto">
+        select
+            community_cnt                as communityCount,
+            product_cnt                  as productCount,
+            community_cnt + product_cnt  as totalCount,
+            folder_cnt                   as folderCount
+        from (
+                 select (select count(*)
+                         from community_scrap
+                         where user_id = #{userId}) community_cnt,
+                        (select count(*)
+                         from product_scrap
+                         where  user_id = #{userId}) product_cnt,
+                        (select count(*)
+                         from scrap_folder
+                         where  user_id = #{userId}) folder_cnt) x
+    </select>
+
     <select id="getUserLikes" parameterType="int" resultType="com.roommake.user.dto.LikeDto">
         (SELECT
              c.comm_id AS id,
@@ -939,5 +1074,122 @@
             follower_id = #{followerUserId}
             and followee_id = #{followeeUserId}
     </delete>
+
+
+    <!-- 팔로잉 수 증가 -->
+    <update id="addFollowingCount">
+        UPDATE user
+        SET following_count = following_count + 1
+        WHERE user_id = #{followerUserId}
+    </update>
+
+    <!-- 팔로워 수 증가 -->
+    <update id="addFollowerCount">
+        UPDATE user
+        SET follower_count = follower_count + 1
+        WHERE user_id = #{followeeUserId}
+    </update>
+
+    <!-- 팔로잉 수 감소 -->
+    <update id="deleteFollowingCount">
+        UPDATE user
+        SET following_count = following_count - 1
+        WHERE user_id = #{followerUserId}
+    </update>
+
+    <!-- 팔로워 수 감소 -->
+    <update id="deleteFollowerCount">
+        UPDATE user
+        SET follower_count = follower_count - 1
+        WHERE user_id = #{followeeUserId}
+    </update>
+
+
+    <!-- 유저의 리뷰 베스트 순 조회 -->
+    <select id="getReviewsByBest" resultType="com.roommake.user.dto.ReviewDto">
+        SELECT
+            p.product_name                  AS name,
+            pi.product_image_name           AS imageName,
+            pr.product_review_id            AS id,
+            pr.product_review_rating        AS rating,
+            pr.product_review_create_date   AS createDate,
+            pr.product_review_content       AS content,
+            pr.product_review_vote_count    AS voteCount,
+            pd.product_detail_size          AS size,
+            pd.product_detail_color         AS color
+        FROM
+            product_review pr
+            JOIN order_item oi ON pr.order_item_id = oi.order_item_id
+            JOIN product p ON oi.product_id = p.product_id
+            LEFT JOIN (
+            SELECT product_id, product_image_name,
+            ROW_NUMBER() OVER (PARTITION BY product_id ORDER BY product_image_id) as rn
+            FROM product_image
+            ) pi ON p.product_id = pi.product_id AND pi.rn = 1
+            JOIN product_detail pd ON oi.product_detail_id = pd.product_detail_id
+        WHERE
+            pr.user_id = #{userId}
+          AND pr.product_review_delete_date IS NULL
+        ORDER BY
+            pr.product_review_vote_count DESC,
+            pr.product_review_create_date DESC
+            limit #{offset}, 10
+    </select>
+
+    <!-- 유저의 리뷰 최신순 조회 -->
+    <select id="getReviewsByRecent" resultType="com.roommake.user.dto.ReviewDto">
+        SELECT
+            p.product_name                  AS name,
+            pi.product_image_name           AS imageName,
+            pr.product_review_id            AS id,
+            pr.product_review_rating        AS rating,
+            pr.product_review_create_date   AS createDate,
+            pr.product_review_content       AS content,
+            pr.product_review_vote_count    AS voteCount,
+            pd.product_detail_size          AS size,
+            pd.product_detail_color         AS color
+        FROM
+            product_review pr
+            JOIN order_item oi ON pr.order_item_id = oi.order_item_id
+            JOIN product p ON oi.product_id = p.product_id
+            LEFT JOIN (
+            SELECT product_id, product_image_name,
+            ROW_NUMBER() OVER (PARTITION BY product_id ORDER BY product_image_id) as rn
+            FROM product_image
+            ) pi ON p.product_id = pi.product_id AND pi.rn = 1
+            JOIN product_detail pd ON oi.product_detail_id = pd.product_detail_id
+        WHERE
+            pr.user_id = #{userId}
+          AND pr.product_review_delete_date IS NULL
+        ORDER BY
+            pr.product_review_vote_count DESC
+            limit #{offset}, 10
+    </select>
+
+    <select id="getReviewRows" resultType="int" parameterType="int">
+        SELECT
+            COUNT(*) AS total_rows
+        FROM
+            product_review pr
+                JOIN order_item oi ON pr.order_item_id = oi.order_item_id
+                JOIN product p ON oi.product_id = p.product_id
+                LEFT JOIN (
+                SELECT product_id, product_image_name,
+                       ROW_NUMBER() OVER (PARTITION BY product_id ORDER BY product_image_id) as rn
+                FROM product_image
+            ) pi ON p.product_id = pi.product_id AND pi.rn = 1
+                JOIN product_detail pd ON oi.product_detail_id = pd.product_detail_id
+        WHERE
+            pr.user_id = #{userId}
+          AND pr.product_review_delete_date IS NULL;
+    </select>
+
+    <!-- 리뷰 삭제 -->
+    <update id="deleteReview" parameterType="int">
+        UPDATE product_review
+        SET product_review_delete_date = NOW()
+        WHERE product_review_id = #{reviewId}
+          AND user_id = #{userId}
+    </update>
 
 </mapper>

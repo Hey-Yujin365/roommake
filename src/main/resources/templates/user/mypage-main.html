@@ -19,7 +19,7 @@
                 </div>
                 <div class="card-body">
                     <h5 class="card-title" style="font-weight: bold" th:text="${user.nickname}">그릭요거트</h5>
-                    <p class="card-text">팔로잉 15 | 팔로워 3</p>
+                    <p class="card-text" th:text="'팔로잉 ' + ${user.followingCount} + ' | 팔로워 ' + ${user.followerCount}">팔로잉 15 | 팔로워 3</p>
                     <a class="btn btn-primary btn-sm" href="/user/setting">설정</a>
                     <hr>
                     <!-- 하위 아이콘 추가 (스크랩 북, 좋아요)-->
@@ -66,10 +66,12 @@
                             <p id="communityContent[[${iterStat.index}]]" class="community-content" style="color: gray; font-size: 12px;" th:text="${community.content}"></p>
                             <!-- 여기까지 -->
                             <div class="post-info" style="font-size: 0.8em; color: gray;">
-                                <span style="margin-right: 10px;" th:text="${community.user.nickname}">닉네임</span>
+                                <span class="fw-bold" style="font-size: 13px; margin-bottom: 0.25rem; margin-right:5px;" th:text="${community.user.nickname}">닉네임</span>
                                 <span style="margin-right: 10px;" th:text="${#dates.format(community.createDate, 'yyyy-MM-dd')}">2024.05.10</span>
-                                <span style="margin-right: 10px;" th:text="${community.replyCount}">댓글 3</span>
-                                <span style="margin-right: 10px;" th:text="${community.viewCount}">조회 1,582</span>
+                                <small>👀</small>
+                                <small th:text="${community.viewCount}">7</small>
+                                <small>💬</small>
+                                <small th:text="${community.replyCount}">7</small>
                             </div>
                         </div>
                     </div>
@@ -149,9 +151,16 @@
             .replace(/<\/p>/gi, "\n")        // `</p>` 태그를 개행 문자로 변환
             .replace(/<\/?[^>]+>/gi, '');    // 나머지 모든 태그 제거
 
-        // 순수 텍스트만 표시
-        $(this).text(formattedContent);
+
+        var lines = formattedContent.split('\n').filter(line => line.trim() !== ''); // 공백 라인 제거
+        var truncatedContent = lines.slice(0, 5).join('\n');
+        if (lines.length > 5) {
+            truncatedContent += '...';
+        }
+
+        $(this).text(truncatedContent);
     });
+
     // 카카오 SDK 초기화
     Kakao.init('b5bebc212a2e13639e3975a054a7aa78');
 

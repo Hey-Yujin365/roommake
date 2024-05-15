@@ -369,7 +369,7 @@
         // 빈 문자열이나 0 입력 시 알림
         $("button[id^=btn-update-amount-]").click(function() {
             let inputVal = $("input[id^=amount-]").val();
-            if (inputVal === "" || inputVal === "0") {
+            if (inputVal === "" || /^0+$/.test(inputVal)) {
                 alert("수량을 입력해주세요.");
                 return false;
             }
@@ -511,7 +511,7 @@
     // 주문하기로 상품번호, 상품상세번호, 상품수량 값 넘기기
     $("#btn-order").click(function() {
         let inputVal = $("input[id^=amount-]").val();
-        if (inputVal === "" || inputVal === "0") {
+        if (inputVal === "" || /^0+$/.test(inputVal)) {
             alert("수량을 입력해주세요.");
             return false;
         }

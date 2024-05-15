@@ -46,6 +46,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         }
 
         // UserDetails 객체 생성하여 반환
+
         return new UserDetailsImpl(id, nickname, fetchedEmail, password, authorities);
     }
 }

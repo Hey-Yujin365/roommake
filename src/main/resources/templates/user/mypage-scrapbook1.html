@@ -10,18 +10,18 @@
                 <h4 class="mb-3" style="font-size: 18px;" th:text="${user.nickname}">그릭요거트</h4>
             </div>
             <!-- 스크랩 북 카테고리-->
-            <ul class="nav nav-tabs justify-content-center mt-3">
+            <ul class="nav nav-tabs justify-content-center mt-3" th:each="scrapCount : ${scrapCounts}">
                 <li class="nav-item">
-                    <a class="nav-link" data-toggle="tab" href="/user/scrapbook" style="color: black;">모두 (<span th:text="${totalScrapCount}">0</span>)</a>
+                    <a class="nav-link" data-toggle="tab" href="/user/scrapbook" style="color: black;">모두 (<span th:text="${scrapCount.totalCount}">0</span>)</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link active" data-toggle="tab" href="/user/scrapbook1" style="color: cornflowerblue !important;">폴더 (<span th:text="${recentScraps.size()}">0</span>)</a>
+                    <a class="nav-link active" data-toggle="tab" href="/user/scrapbook1" style="color: cornflowerblue !important;">폴더 (<span th:text="${scrapCount.folderCount}">0</span>)</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" data-toggle="tab" href="/user/scrapbook2" style="color: black;">상품 (<span th:text="${productCount}">0</span>)</a>
+                    <a class="nav-link" data-toggle="tab" href="/user/scrapbook2" style="color: black;">상품 (<span th:text="${scrapCount.productCount}">0</span>)</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" data-toggle="tab" href="/user/scrapbook3" style="color: black;">커뮤니티 (<span th:text="${communityCount}">0</span>)</a>
+                    <a class="nav-link" data-toggle="tab" href="/user/scrapbook3" style="color: black;">커뮤니티 (<span th:text="${scrapCount.communityCount}">0</span>)</a>
                 </li>
             </ul>
             <div class="text-end mt-3">
@@ -74,6 +74,31 @@
                     </th:block>
                 </div>
             </form>
+            <div class="row mt-3 mb-3">
+                <div class="col-12">
+                    <div th:if="${paging.totalRows ne 0 }">
+                        <nav aria-label="Page navigation">
+                            <ul class="pagination justify-content-center">
+                                <li class="page-item" th:classappend="${paging.first ? 'disabled' : ''}">
+                                    <a th:href="@{/user/scrapbook1(page=${paging.currentPage - 1})}" class="page-link"
+                                       th:onclick="|changePage(${paging.currentPage - 1}, event)|">이전</a>
+                                </li>
+                                <th:block th:each="num : ${#numbers.sequence(paging.beginPage, paging.endPage)}">
+                                    <li class="page-item" th:classappend="${paging.currentPage == num ? 'active' : ''}">
+                                        <a th:href="@{/user/scrapbook1(page=${num})}" class="page-link"
+                                           th:onclick="|changePage(${num}, event)|" th:text="${num}">1</a>
+                                    </li>
+                                </th:block>
+
+                                <li class="page-item" th:classappend="${paging.last ? 'disabled' : ''}">
+                                    <a th:href="@{/user/scrapbook1(page=${paging.currentPage + 1})}" class="page-link"
+                                       th:onclick="|changePage(${paging.currentPage + 1}, event)|">다음</a>
+                                </li>
+                            </ul>
+                        </nav>
+                    </div>
+                </div>
+            </div>
 
             <!-- 폴더 추가 모달 폼 -->
             <form id="add-folder-form" action="/user/scrapbook1/insertFolder" method="post" style="display: none;">
@@ -121,7 +146,7 @@
 
         // 취소 버튼 클릭 시 편집 모드 취소 및 체크박스 숨김
         $(document).on('click', '.cancel-btn', function() {
-            $('.delete-btn, .cancel-btn').remove(); // 삭제 및 취소 버튼 제거
+            $('.delete-btn, .cancel-btn').remove();
             $('input[type="checkbox"]').hide().prop('checked', false);
             $('a.edit-link').show(); // 편집 버튼 표시
         });

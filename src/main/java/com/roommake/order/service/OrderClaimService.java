@@ -155,7 +155,7 @@ public class OrderClaimService {
         if (form.getType().equals("return")) {
             // 반품처리
             orderClaimMapper.createItemReturn(form);
-            int statusId = 7;
+            int statusId = 6;
             orderClaimMapper.updateClaimOrderItemStatus(form.getOrderItemId(), statusId);
         } else {
             // 교환처리
@@ -190,7 +190,7 @@ public class OrderClaimService {
             orderClaimMapper.createExchangeDetail(exchangeDetail);
 
             // 3. 주문상세 상태 갱신
-            int statusId = 9;
+            int statusId = 8;
             orderClaimMapper.updateClaimOrderItemStatus(form.getOrderItemId(), statusId);
         }
     }

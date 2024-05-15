@@ -518,19 +518,35 @@ public class CommunityService {
         return community.getScrapCount();
     }
 
-    // 유저 ID로 커뮤니티 정보 조회
+    /**
+     * 유저 ID로 커뮤니티 정보 조회
+     *
+     * @param userId 유저 아이디
+     * @param page   페이징
+     * @return 마이페이지 커뮤니티 정보
+     */
     public List<MyPageCommunity> getCommunitiesByUserId(int userId, int page) {
         int offset = (page - 1) * 5;
 
         return communityMapper.getCommunitiesByUserId(userId, offset);
     }
 
-    // 유저 ID로 커뮤니티 행 조회
+    /**
+     * 유저 ID로 커뮤니티 개수 조회
+     *
+     * @param userId 유저 아이디
+     * @return 커뮤니티 개수
+     */
     public int getTotalRows(int userId) {
         return communityMapper.getTotalRowsByUserId(userId);
     }
 
-    // 사용자 ID로 사용자가 작성한 총 게시물 수 조회
+    /**
+     * 유저 아이디로 사용자가 작성한 총 게시물 수 조회
+     *
+     * @param userId 유저 아이디
+     * @return 총 게시물 수
+     */
     public int countCommunitiesByUserId(int userId) {
         return communityMapper.countCommunitiesByUserId(userId);
     }

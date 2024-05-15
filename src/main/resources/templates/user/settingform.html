@@ -69,7 +69,7 @@
 </div>
 <script layout:fragment="script" type="text/javascript">
     $(document).ready(function() {
-        var originalEmail = $('#email').val(); // 기존 이메일 저장
+        var originalEmail = $('#email').val();
         var userPoint = parseInt($('#userPoint').text());
 
         $('#emailEditBtn').click(function() {
@@ -86,7 +86,6 @@
                 return false;
             }
 
-            // 이메일 중복 검사 추가
             var email = $('#email').val().trim();
             if (email !== originalEmail) {
                 checkEmailDuplicate(email);
@@ -112,9 +111,10 @@
             }
         }
 
+        // 이메일 중복 검사 함수
         function checkEmailDuplicate(email) {
             $.ajax({
-                url: '/user/check-email', // 이메일 중복 검사 엔드포인트
+                url: '/user/check-email',
                 type: 'POST',
                 contentType: 'application/json',
                 data: JSON.stringify({email: email}),
@@ -203,17 +203,17 @@
             }, 1000);
         }
 
-        var duration = 180; // 타이머 시간을 설정 (3분)
+        var duration = 180;                         // 타이머 시간을 설정 (3분)
         var display = $('#timer');
         startTimer(duration, display);
 
-        var originalNickname = $('#nickname').val();    // 기존 닉네임 저장
+        var originalNickname = $('#nickname').val();
 
         $('#nickname').on('keyup', function() {
             var nickname = $(this).val().trim();
             if (validateNickname(nickname)) {          // 닉네임 유효성 검사 실행
                 if (nickname !== originalNickname) {
-                    checkNicknameDuplicate(nickname); // 닉네임 중복 검사
+                    checkNicknameDuplicate(nickname);  // 닉네임 중복 검사
                 }
             }
         });
@@ -230,7 +230,7 @@
                 $("#nicknameError").text("공백, 특수문자를 제외한 2~20자리여야 합니다.");
                 return false;
             } else {
-                $("#nicknameError").text(""); // 에러 메세지 초기화
+                $("#nicknameError").text("");
                 return true;
             }
         }
@@ -238,7 +238,7 @@
         // 닉네임 중복 검사
         function checkNicknameDuplicate(nickname) {
             $.ajax({
-                url: '/user/check-duplicate-nickname', // 닉네임 중복 검사 엔드포인트
+                url: '/user/check-duplicate-nickname',
                 type: 'POST',
                 data: {nickname: nickname},
                 success: function(response) {
@@ -257,10 +257,10 @@
 
         // 이미지 클릭 시 파일 선택 창 열기
         $('#profileImage').click(function() {
-            $('#profilePhotoInput').click(); // 파일 선택 창 열기
+            $('#profilePhotoInput').click();
         });
 
-        // 이미지 파일 선택 시 이미지 미리보기를 업데이트하지만, 서버로는 전송하지 않음
+        // 이미지 파일 선택 시 이미지 미리보기
         $('#profilePhotoInput').change(function(event) {
             var file = event.target.files[0];
             if (file) {
@@ -275,11 +275,11 @@
         $('#sns').on('keyup', function() {
             var snsUrl = $(this).val().trim();
             if (snsUrl === '') {
-                $('#snsError').text(''); // 입력이 비어 있을 때는 오류 메시지를 초기화합니다.
+                $('#snsError').text('');
             } else if (!isValidUrl(snsUrl)) {
                 $('#snsError').text('올바른 URL 형식이 아닙니다.');
             } else {
-                $('#snsError').text(''); // URL 형식이 올바를 때는 오류 메시지를 초기화합니다.
+                $('#snsError').text('');
             }
         });
 
@@ -310,12 +310,12 @@
             let point = $("#userPoint").val();
             if (confirm(`현재 적립금은 ${point}입니다. 탈퇴하면 적립금이 삭제됩니다. 정말로 탈퇴하시겠습니까?`)) {
                 $.ajax({
-                    url: '/user/withdraw',  // POST 요청을 받는 서버의 URL
+                    url: '/user/withdraw',
                     type: 'POST',
-                    data: {_csrf: $('meta[name="csrf-token"]').attr('content')}, // CSRF 토큰을 포함해야 합니다.
+                    data: {_csrf: $('meta[name="csrf-token"]').attr('content')},
                     success: function() {
                         alert("탈퇴 처리되었습니다. 그동안 이용해주셔서 감사합니다.");
-                        window.location.href = '/'; // 성공시 메인 페이지로 리다이렉션
+                        window.location.href = 'http://43.202.27.255/';
                     },
                     error: function() {
                         alert("탈퇴 처리 중 오류가 발생했습니다. 다시 시도해 주세요.");
@@ -326,7 +326,7 @@
 
         // 취소 버튼 이벤트
         $('#btnCancel').click(function() {
-            window.location.href = '/'; // 메인 페이지로 이동
+            window.location.href = 'http://43.202.27.255/'; // 메인 페이지로 이동
         });
     });
 

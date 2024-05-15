@@ -8,14 +8,14 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 </head>
 <body>
-<!-- 회원가입 폼 네비바-->
+<!-- 네비바 -->
 <nav class="navbar navbar-expand-lg navbar-light bg-white">
-    <a class="navbar-brand" href="http://localhost">
+    <a class="navbar-brand" href="http://43.202.27.255/">
         <img th:src="@{/images/home/logo.png}" width="150px" height="45px" class="d-inline align-top">
     </a>
 </nav>
-<!--회원가입 폼-->
-<div class="container mt-5" style="max-width: 770px">
+<!-- 회원가입 폼-->
+<div class="container mt-5" style="max-width: 900px">
     <h4>회원가입</h4>
     <div class="text-center mt-3" style="margin: 0 10px;">
         <p class="fw-light" style="color: grey; font-size: 13px;">SNS계정으로 간편하게 회원가입</p>
@@ -107,7 +107,7 @@
                             </label>
                             <span th:class="${term.requireYn == 'Y' ? 'text-primary' : 'text-secondary'}"
                                   th:text="' ' + ${term.requireYn == 'Y' ? '(필수)' : '(선택)'}">
-                        </span>
+                            </span>
                         </div>
                         <a th:href="@{|/user/terms/${term.id}|}" class="text-secondary">
                             <i class="bi bi-chevron-right"></i>
@@ -123,7 +123,7 @@
             </form>
             <div class="text-center mt-3 mb-5">
                 <span class="fw-light" style="font-size: 13px;">이미 아이디가 있으신가요?</span>
-                <a href="/login" style="text-decoration: none;"><span class="fw-light" style="font-size: 13px;">로그인</span></a>
+                <a href="/user/login" style="text-decoration: none;"><span class="fw-light" style="font-size: 13px;">로그인</span></a>
             </div>
         </div>
     </div>
@@ -132,19 +132,33 @@
 <script type="text/javascript" th:src="@{/webjars/bootstrap/5.3.3/js/bootstrap.bundle.min.js}"></script>
 <script type="text/javascript">
     $(document).ready(function() {
-        // 전역 변수로 전체 이메일 주소 저장
+        // 전역 변수로 이메일, 닉네임 저장
         var email;
+        var originalNickname = $('#nickname').val();
 
-        // 이메일 아이디 입력란 유효성 검사
+        // 이메일 아이디 입력란 유효성 검사 및 중복 검사
         $("#emailId").on('input', function() {
             validateEmailId();
+            if ($("#emailIdError").text() === "" && $("#emailDomainError").text() === "") {
+                var emailId = $("#emailId").val().trim();
+                var domain = $("#emailDomain").val().trim();
+                var fullEmail = emailId + '@' + (domain === "custom" ? $("#customEmail").val().trim() : domain);
+                checkEmailDuplicate(fullEmail);
+            }
         }).focusout(function() {
             // 입력란이 비어 있을 경우
             if (!$(this).val().trim()) {
                 $("#emailIdError").text("필수 입력 항목입니다.");
+                $("#verifyEmailBtn").prop("disabled", true);
             } else {
                 // 입력이 있는 경우 유효성 검사 수행
                 validateEmailId();
+                if ($("#emailIdError").text() === "" && $("#emailDomainError").text() === "") {
+                    var emailId = $("#emailId").val().trim();
+                    var domain = $("#emailDomain").val().trim();
+                    var fullEmail = emailId + '@' + (domain === "custom" ? $("#customEmail").val().trim() : domain);
+                    checkEmailDuplicate(fullEmail);
+                }
             }
         });
 
@@ -158,13 +172,16 @@
                 // 입력이 있는 경우 유효성 검사
                 if (!emailId) {
                     $("#emailIdError").text("필수 입력 항목입니다.");
+                    $("#verifyEmailBtn").prop("disabled", true);
                 } else if (!/^[^\s@]+$/i.test(emailId)) {
                     $("#emailIdError").text("이메일 형식이 올바르지 않습니다.");
+                    $("#verifyEmailBtn").prop("disabled", true);
                 } else {
                     $("#emailIdError").text("");
                 }
             } else {
                 $("#emailIdError").text("이메일 형식이 올바르지 않습니다.");
+                $("#verifyEmailBtn").prop("disabled", true);
             }
         }
 
@@ -173,14 +190,6 @@
             var domain = emailId.split('@')[1];
             return /^[a-zA-Z0-9]+([.-]?[a-zA-Z0-9]+)*(\.[a-zA-Z]{2,})+$/.test(domain);
         }
-
-        // 이메일 도메인 입력란 및 직접 입력란 유효성 검사
-        $("#emailDomain, #customEmail").on('change focusout', function() {
-            validateEmailDomain();
-            if ($("#emailId").val().trim() === "" && ($("#emailDomain").val() !== "custom" || $("#customEmail").val().trim() !== "")) {
-                $("#emailIdError").text("필수 입력 항목입니다.");
-            }
-        });
 
         // 이메일 도메인 유효성 검사 함수
         function validateEmailDomain() {
@@ -191,8 +200,21 @@
                 $("#emailDomainError").text("이메일 형식이 올바르지 않습니다.");
             } else {
                 $("#emailDomainError").text("");
+                var emailId = $("#emailId").val().trim();
+                if (emailId) {
+                    var fullEmail = emailId + '@' + domain;
+                    checkEmailDuplicate(fullEmail);
+                }
             }
         }
+
+        // 이메일 도메인 입력란 및 직접 입력란 유효성 검사
+        $("#emailDomain, #customEmail").on('input', function() {
+            validateEmailDomain();
+            if ($("#emailId").val().trim() === "" && ($("#emailDomain").val() !== "custom" || $("#customEmail").val().trim() !== "")) {
+                $("#emailIdError").text("필수 입력 항목입니다.");
+            }
+        });
 
         // 직접 입력 선택 시 입력 필드로 전환
         $("#emailDomain").change(function() {
@@ -203,7 +225,7 @@
                 $("#emailIdError").text("");
                 $("#emailIdError").hide();
             } else {
-                $("#customDomain").hide().find("#customEmail").prop("disabled", true)
+                $("#customDomain").hide().find("#customEmail").prop("disabled", true);
                 $("#emailDomain").show().prop("disabled", false);
                 $("#emailDomainError").text("");
                 if ($("#emailId").val().trim() === "") {
@@ -224,6 +246,28 @@
             validateEmailId();
             validateEmailDomain();
         });
+
+        // 이메일 중복 검사 함수
+        function checkEmailDuplicate(email) {
+            $.ajax({
+                url: '/user/check-email', // 이메일 중복 검사 엔드포인트
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({email: email}),
+                success: function(response) {
+                    if (response.exists) {
+                        $("#emailDomainError").text("이미 가입된 계정입니다.").show();
+                        $("#verifyEmailBtn").prop("disabled", true);
+                    } else {
+                        $("#emailDomainError").text("").hide();
+                        $("#verifyEmailBtn").prop("disabled", false);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    $("#emailDomainError").text("서버 오류로 인증이 불가능합니다.").show(); // 오류 텍스트 표시
+                }
+            });
+        }
 
         // 비밀번호 입력란 유효성 검사
         $("#password").on('input', function() {
@@ -247,17 +291,6 @@
             }
         });
 
-        // 닉네임 입력란 유효성 검사
-        $("#nickname").on('input', function() {
-            validateConfirmPassword();
-        }).focusout(function() {
-            if (!$(this).val().trim()) {
-                $("#nicknameError").text("필수 입력 항목입니다.");
-            } else {
-                validateAndCheckNickname();
-            }
-        });
-
         // 비밀번호 유효성 검사 함수
         function validatePassword() {
             var password = $("#password").val().trim();
@@ -274,7 +307,6 @@
                 $("#passwordError").text("");
                 return true;
             }
-
         }
 
         // 비밀번호 확인 유효성 검사 함수
@@ -288,87 +320,101 @@
                 return false;
             } else {
                 $("#confirmPasswordError").text("");
-                return true
+                return true;
             }
         }
 
-        // 닉네임 유효성 검사 및 중복 확인 함수
-        function validateAndCheckNickname() {
-            var nickname = $("#nickname").val().trim();
+        // 닉네임 입력란 유효성 검사 및 중복 검사 통합
+        $('#nickname').on('keyup', function() {
+            var nickname = $(this).val().trim();
+            if (validateNickname(nickname)) {
+                if (nickname !== originalNickname) {
+                    checkNicknameDuplicate(nickname);
+                }
+            }
+        });
 
-            // 닉네임 유효성 검사
+        // 닉네임 입력란 포커스 아웃 시 유효성 검사 및 중복 검사
+        $("#nickname").focusout(function() {
+            var nickname = $(this).val().trim();
+            if (validateNickname(nickname)) {
+                if (nickname !== originalNickname) {
+                    checkNicknameDuplicate(nickname);
+                }
+            }
+        });
+
+        // 닉네임 유효성 검사 함수
+        function validateNickname(nickname) {
             if (!nickname) {
                 $("#nicknameError").text("필수 입력 항목입니다.");
                 return false;
-            } else if (nickname.length === 1) {
-                $("#nicknameError").text("2자 이상 입력해주세요.");
-                return false;
-            } else if (nickname.length > 20) {
-                $("#nicknameError").text("20자 이하로 입력해주세요.");
+            } else if (nickname.length < 2 || nickname.length > 20) {
+                $("#nicknameError").text("2글자 이상, 20글자 이하만 가능합니다.");
                 return false;
             } else if (!/^[ㄱ-ㅎ가-힣a-z0-9-_]{2,20}$/.test(nickname)) {
-                $("#nicknameError").text("닉네임은 특수문자를 제외한 2~20자리여야 합니다.");
+                $("#nicknameError").text("공백, 특수문자를 제외한 2~20자리여야 합니다.");
                 return false;
             } else {
-                $("#nicknameError").text("");
-
+                $("#nicknameError").text(""); // 에러 메시지 초기화
+                return true;
             }
-
-            // 닉네임 입력란 변경 감지
-            $('#nicknameInput').on('input', function() {
-                var nickname = $(this).val();
-
-                // 닉네임 중복 확인 요청
-                $.ajax({
-                    url: '/check-duplicate-nickname',
-                    type: 'POST',
-                    data: {nickname: nickname},
-                    success: function(response) {
-                        if (response.duplicate) {
-                            $("#nicknameError").text("사용 중인 별명입니다.");
-                            $('#submitButton').prop('disabled', true);
-                        } else {
-                            $("#nicknameError").text("");
-                            $('#submitButton').prop('disabled', false);
-                        }
-                    },
-                    error: function(xhr, status, error) {
-                        console.error("서버 오류:", error);
-                    }
-                });
-            });
-            return true;
         }
 
-        // 닉네임 입력란 포커스 아웃
-        $("#nickname").focusout(function() {
-            validateAndCheckNickname();
-        });
+        // 닉네임 중복 검사 함수
+        function checkNicknameDuplicate(nickname) {
+            $.ajax({
+                url: '/user/check-duplicate-nickname',
+                type: 'POST',
+                data: {nickname: nickname},
+                success: function(response) {
+                    if (!response) {
+                        $("#nicknameError").text("이미 사용 중인 닉네임입니다.");
+                    } else {
+                        $("#nicknameError").text("");
+                    }
+                },
+                error: function(xhr, status, error) {
+                    $("#nicknameError").text("서버 오류, 다시 시도해 주세요.");
+                }
+            });
+        }
 
         // 추천인 코드 입력 필드 유효성 검사
         $('#optionRecommendCode').on('input', function() {
             var recommendCode = $(this).val();
             if (recommendCode.length > 0) {
+                checkRecommendCodeDuplicate(recommendCode);
+            } else {
+                $('#optionRecommendCodeError').hide();
+            }
+        });
+
+        // 추천인 코드 검사 함수
+        function checkRecommendCodeDuplicate(optionRecommendCode) {
+            // 대문자와 숫자 포함 8자리 입력확인
+            var isValidFormat = /^[A-Z0-9]{8}$/.test(optionRecommendCode);
+
+            if (optionRecommendCode.length > 0 && isValidFormat) {
                 $.ajax({
-                    url: '/validate-recommend-code',
+                    url: '/user/check-recommend-code',
                     type: 'POST',
-                    contentType: 'application/json',
-                    data: JSON.stringify({recommendCode: recommendCode}),
-                    success: function(data) {
-                        if (!data.isValid) {
-                            $('#optionRecommendCodeError').text('존재하지 않는 추천인 코드입니다.').show();
-                        } else {
+                    data: {recommendCode: optionRecommendCode},
+                    success: function(response) {
+                        if (response === true) {
                             $('#optionRecommendCodeError').hide();
+                        } else {
+                            $('#optionRecommendCodeError').text('유효하지 않은 코드입니다.').show();
                         }
                     },
                     error: function(xhr, status, error) {
-                        console.error('Error validating recommend code:', error);
+                        $("#optionRecommendCodeError").text("서버 오류, 다시 시도해 주세요.");
                     }
                 });
             } else {
                 $('#optionRecommendCodeError').hide();
             }
-        });
+        }
 
         // 전체 동의 체크박스
         $("#checkbox-all").change(function() {
@@ -386,16 +432,17 @@
             if ($("#emailIdError").text() === "" && $("#emailDomainError").text() === "") {
                 var emailId = $("#emailId").val().trim();
                 var domain = $("#emailDomain").val() === "custom" ? $("#customEmail").val().trim() : $("#emailDomain").val().trim();
-                fullEmail = emailId + '@' + domain;
+                email = emailId + '@' + domain;
 
                 $.ajax({
                     url: '/send-verification-code',
                     type: 'POST',
-                    data: {email: fullEmail},
+                    data: {email: email},
                     success: function(data) {
                         alert("인증 코드가 전송되었습니다.");
                         $("#emailVerification").show();
                         $("#verifyEmailBtn").prop("disabled", true);
+                        startTimer(180, $("#timer"));
                     },
                     error: function(xhr, status, error) {
                         alert("인증 코드 전송에 실패했습니다. 오류: " + error);
@@ -409,24 +456,23 @@
             requestEmailVerification();
         });
 
-        // 인증 코드 확인 버튼 클릭 이벤트
-        $("#confirmVerificationBtn").click(function() {
-            var verificationCode = $("#verificationCode").val();
+        $('#confirmVerificationBtn').click(function() {
+            var verificationCode = $('#verificationCode').val();
             $.ajax({
                 url: '/verify-email',
                 type: 'POST',
                 data: {
                     code: verificationCode,
-                    email: fullEmail
+                    email: email
                 },
                 success: function(response) {
                     response = JSON.parse(response);
                     if (response.valid) {
                         alert("인증에 성공하였습니다.");
                         $("#emailVerification").hide();
-                        $("#verificationCode").hide();
+                        $("#verificationCode").val('');
                         $("#confirmVerificationBtn").hide();
-                        $("#verifyEmailBtn").text("이메일 인증 완료").prop("disabled", true);
+                        $("#emailEditBtn").text("이메일 인증 완료").prop('disabled', true);
                     } else {
                         alert("인증에 실패하였습니다. 잘못된 인증 코드입니다.");
                     }
@@ -437,6 +483,7 @@
             });
         });
 
+        // 인증코드 타이머 함수
         function startTimer(duration, display) {
             var timer = duration, minutes, seconds;
             var intervalId = setInterval(function() {
@@ -457,13 +504,14 @@
             }, 1000);
         }
 
-        var duration = 180; // 타이머 시간을 설정 (3분)
+        var duration = 180;             // 타이머 시간을 설정 (3분)
         var display = $('#timer');
         startTimer(duration, display);
 
         // 폼 제출 이벤트 핸들러
         $("#signupForm").submit(function(event) {
-            // 필수 동의 항목 체크 여부 확인
+            var originalNickname = $('#nickname').val();
+            // 필수 약관 체크 여부 확인
             var allChecked = $("#checkbox1").is(":checked") && $("#checkbox2").is(":checked");
 
             if (!allChecked) {
@@ -476,11 +524,10 @@
             // 비밀번호, 비밀번호 확인, 닉네임 입력란 유효성 검사
             let result1 = validatePassword();
             let result2 = validateConfirmPassword();
-            let result3 = validateAndCheckNickname();
+            let result3 = validateNickname(originalNickname);
 
             return result1 && result2 && result3;
-        })
-        
+        });
     });
 </script>
 </body>

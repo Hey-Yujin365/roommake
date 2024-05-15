@@ -8,7 +8,6 @@ import com.roommake.order.dto.OrderCreateForm;
 import com.roommake.order.dto.OrderDto;
 import com.roommake.order.dto.OrderItemDto;
 import com.roommake.order.mapper.DeliveryMapper;
-import com.roommake.order.mapper.MyOrderMapper;
 import com.roommake.order.mapper.OrderMapper;
 import com.roommake.order.vo.Delivery;
 import com.roommake.order.vo.Order;
@@ -45,7 +44,6 @@ public class OrderService {
     private final MailService mailService;
     private final UserMapper userMapper;
     private final CartMapper cartMapper;
-    private final MyOrderMapper myOrderMapper;
 
     /**
      * 장바구니에 담긴 상품의 정보를 반환한다.

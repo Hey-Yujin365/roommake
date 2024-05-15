@@ -6,7 +6,6 @@ import com.roommake.order.dto.MyOrderCriteria;
 import com.roommake.order.dto.OrderListDto;
 import com.roommake.order.dto.UserOrderInfoDto;
 import com.roommake.order.mapper.MyOrderMapper;
-import com.roommake.order.mapper.OrderMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,7 +17,6 @@ import java.util.List;
 public class MyOrderService {
 
     private final MyOrderMapper myOrderMapper;
-    private final OrderMapper orderMapper;
 
     /**
      * 로그인한 유저의 모든 주문내역을 반환한다.

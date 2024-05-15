@@ -18,7 +18,7 @@
             <a class="nav-link" th:classappend="${category} == '나의쇼핑' ? 'active-link'" href="/user/myorder"><span style="font-weight: bold; font-size: larger;">나의쇼핑</span></a>
         </li>
         <li class="nav-item">
-            <a class="nav-link" th:classappend="${category} == '나의리뷰' ? 'active-link'" href="#"><span style="font-weight: bold; font-size: larger;">나의리뷰</span></a>
+            <a class="nav-link" th:classappend="${category} == '나의리뷰' ? 'active-link'" href="/user/myReview/best"><span style="font-weight: bold; font-size: larger;">나의리뷰</span></a>
         </li>
         <li class="nav-item">
             <a class="nav-link" th:classappend="${category} == '설정' ? 'active-link'" href="/user/setting"><span style="font-weight: bold; font-size: larger;">설정</span></a>
@@ -74,10 +74,10 @@
                         items = [{label: '주문 목록', link: '/user/myorder'}, {label: '나의 문의내역', link: '/user/myqna/noAnswer'}, {label: '포인트', link: '/user/point'}];
                         break;
                     case '나의리뷰':
-                        items = [{label: '리뷰쓰기', link: ''}, {label: '내가 작성한 리뷰', link: ''}];
+                        items = [{label: '리뷰쓰기', link: ''}, {label: '내가 작성한 리뷰', link: '/user/myReview/best'}];
                         break;
                     case '설정':
-                        items = [{label: '회원정보수정', link: '/user/setting'}, {label: '사용자 숨기기 설정', link: ''}, {label: '비밀번호 변경', link: ''}];
+                        items = [{label: '회원정보수정', link: '/user/setting'}, {label: '사용자 숨기기 설정', link: ''}, {label: '비밀번호 변경', link: '/user/changePwd'}];
                         break;
                 }
 
