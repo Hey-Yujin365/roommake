@@ -136,4 +136,20 @@
         where
             faq_category_id = #{id}
     </select>
+
+    <insert id="createFaqCategory" parameterType="String">
+        insert into
+            faq_category
+            (faq_category_name)
+        values
+            (#{name})
+    </insert>
+
+    <delete id="deleteFaqCategory" parameterType="String">
+        delete
+        from
+            faq_category
+        where
+            faq_category_name = #{name}
+    </delete>
 </mapper>

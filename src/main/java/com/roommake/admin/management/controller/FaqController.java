@@ -55,4 +55,20 @@ public class FaqController {
     public Faq detail(@PathVariable("id") int id) {
         return faqService.getFaqById(id);
     }
+
+    @Operation(summary = "자주묻는질문 카테고리 추가", description = "자주묻는질문 카테고리를 추가한다.")
+    @GetMapping("/create/faqcategory")
+    public String createFaqCategory(@RequestParam String name) {
+        faqService.createFaqCategory(name);
+
+        return "redirect:/admin/management/faq";
+    }
+
+    @Operation(summary = "자주묻는질문 카테고리 삭제", description = "자주묻는질문 카테고리를 삭제한다.")
+    @GetMapping("/delete/faqcategory")
+    public String deleteFaqCategory(@RequestParam String name) {
+        faqService.deleteFaqCategory(name);
+
+        return "redirect:/admin/management/faq";
+    }
 }

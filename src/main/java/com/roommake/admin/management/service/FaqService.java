@@ -167,4 +167,17 @@ public class FaqService {
     public FaqCategory getFaqCategory(int faqCatId) {
         return faqMapper.getFaqCategory(faqCatId);
     }
+
+    /**
+     * 자주묻는질문 카테고리를 추가한다.
+     *
+     * @param name
+     */
+    public void createFaqCategory(String name) {
+        faqMapper.createFaqCategory(name);
+    }
+
+    public void deleteFaqCategory(String name) {
+        faqMapper.deleteFaqCategory(name);
+    }
 }

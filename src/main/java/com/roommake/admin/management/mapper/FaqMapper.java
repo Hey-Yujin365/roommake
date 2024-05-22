@@ -22,4 +22,8 @@ public interface FaqMapper {
     List<FaqCategory> getFaqCategories();
 
     FaqCategory getFaqCategory(int faqId);
+
+    void createFaqCategory(String name);
+
+    void deleteFaqCategory(String name);
 }
